@@ -18,22 +18,23 @@ exception when others then return true; end $$;
 create function pg_temp.error_of(sql text) returns text language plpgsql as $$
 begin execute sql; return '';
 exception when others then return sqlerrm; end $$;
--- A time in the salon's time zone, some days from today: pg_temp.at(2, '10:00').
+-- A time in the salon's time zone (US Eastern), some days from today: pg_temp.at(2, '10:00').
 create function pg_temp.at(days int, hhmm text) returns timestamptz language sql stable as $$
-  select ((date_trunc('day', now() at time zone 'Africa/Addis_Ababa') + make_interval(days => days) + hhmm::time) at time zone 'Africa/Addis_Ababa')
+  select ((date_trunc('day', now() at time zone 'America/New_York') + make_interval(days => days) + hhmm::time) at time zone 'America/New_York')
 $$;
 grant execute on all functions in schema pg_temp to anon, authenticated;
 
 /* ---------------------------------------------------------------- set-up */
-insert into salon (name, timezone, slot_minutes, min_notice_hours, booking_window_days, cancel_hours)
-values ('Test Salon', 'Africa/Addis_Ababa', 30, 2, 60, 24);
+insert into salon (name, slot_minutes, min_notice_hours, booking_window_days, cancel_hours)
+values ('Test Salon', 30, 2, 60, 24);
+select pg_temp.check((select timezone || ' ' || currency from salon) = 'America/New_York USD', 'a new salon is on US Eastern Time, in US dollars');
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('a0000000-0000-0000-0000-000000000001', 'owner@test', '{"full_name":"Owner"}'),
-  ('c0000000-0000-0000-0000-000000000001', 'hana@test', '{"full_name":"Hana Customer","phone":"0911000001"}'),
-  ('c0000000-0000-0000-0000-000000000002', 'liya@test', '{"full_name":"Liya Customer","phone":"0911000002","role":"admin"}');
+  ('c0000000-0000-0000-0000-000000000001', 'hana@test', '{"full_name":"Hana Customer","phone":"(202) 555-0101"}'),
+  ('c0000000-0000-0000-0000-000000000002', 'liya@test', '{"full_name":"Liya Customer","phone":"(301) 555-0102","role":"admin"}');
 select pg_temp.check((select count(*) from profiles where role = 'customer') = 3, 'every sign-up gets a customer profile');
-select pg_temp.check((select phone from profiles where id = 'c0000000-0000-0000-0000-000000000001') = '0911000001', 'name and phone come from sign-up');
+select pg_temp.check((select phone from profiles where id = 'c0000000-0000-0000-0000-000000000001') = '(202) 555-0101', 'name and phone come from sign-up');
 select pg_temp.check((select role from profiles where id = 'c0000000-0000-0000-0000-000000000002') = 'customer', 'a role in sign-up data does not make anyone an admin');
 update profiles set role = 'admin' where id = 'a0000000-0000-0000-0000-000000000001'; -- the owner, set up by hand
 
@@ -78,6 +79,7 @@ create temp table booked as select * from book_appointment('5e000000-0000-0000-0
 grant select on booked to authenticated;
 select pg_temp.check((select status from booked) = 'pending', 'a booking starts as pending');
 select pg_temp.check((select ends_at - starts_at from booked) = interval '6 hours', 'the time comes from the style and options (240 + 60 + 60 min)');
+select pg_temp.check((select to_char(starts_at at time zone 'America/New_York', 'HH24:MI') from booked) = '14:00', 'times are the salon''s local time');
 select pg_temp.check((select price from booked) = 3800, 'the price comes from the style and options (2500 + 800 + 500)');
 select pg_temp.check((select note from booked) = 'Please use black hair' and (select style_name from booked) = 'Knotless braids', 'note trimmed; style name kept');
 select pg_temp.check((select jsonb_array_length(options) from booked) = 2, 'the chosen options are kept with the booking');

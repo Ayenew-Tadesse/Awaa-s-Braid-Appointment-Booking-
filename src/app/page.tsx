@@ -25,7 +25,7 @@ export default function Home() {
           <svg className="pointer-events-none absolute -right-12 -top-6 h-56 w-40 opacity-15" viewBox="0 0 40 120" aria-hidden="true">
             {Array.from({ length: 12 }, (_, i) => <ellipse key={i} cx={20 + (i % 2 ? 5 : -5)} cy={8 + i * 9.5} rx="9" ry="7" fill="currentColor" />)}
           </svg>
-          <p className="text-sm opacity-85">{t("landing.eyebrow", { city: c?.salon.city ?? "Addis Ababa" })}</p>
+          <p className="text-sm opacity-85">{t("landing.eyebrow", { city: c?.salon.city ?? "Washington, DC area" })}</p>
           <h1 className="mt-2 max-w-md text-[1.9rem] font-semibold leading-tight sm:text-4xl">{t("landing.title")}</h1>
           <p className="mt-3 max-w-md opacity-90">{t("landing.lead")}</p>
           <div className="mt-6 flex flex-col gap-2.5 sm:flex-row">
@@ -56,7 +56,7 @@ export default function Home() {
         <section className="card mt-8 p-4" aria-labelledby="visit">
           <h2 id="visit" className="text-lg font-semibold">{t("landing.visit")}</h2>
           <ul className="mt-2 space-y-2 text-sm">
-            {c?.salon.address && <li className="flex gap-2"><Icon name="pin" className="mt-0.5 shrink-0 text-brand" />{c.salon.address}{c.salon.city ? `, ${c.salon.city}` : ""}</li>}
+            {c?.salon.address && <li className="flex gap-2"><Icon name="pin" className="mt-0.5 shrink-0 text-brand" /><span>{c.salon.address}{c.salon.city && <span className="muted block">{c.salon.city}</span>}</span></li>}
             <li className="flex gap-2"><Icon name="clock" className="mt-0.5 shrink-0 text-brand" />{t("landing.hours")}</li>
             {c?.salon.phone && <li className="flex gap-2"><Icon name="phone" className="mt-0.5 shrink-0 text-brand" /><a className="underline" href={`tel:${c.salon.phone.replace(/\s/g, "")}`}>{c.salon.phone}</a></li>}
             <li className="flex gap-2"><Icon name="money" className="mt-0.5 shrink-0 text-brand" />{t("landing.pay")}</li>

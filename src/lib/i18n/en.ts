@@ -9,7 +9,7 @@ export const en = {
   status: { pending: "Waiting for confirmation", confirmed: "Confirmed", completed: "Done", cancelled: "Cancelled", no_show: "Missed" },
   common: { loading: "Loading…", error: "Something went wrong", retry: "Try again", demo: "Demo" },
   landing: {
-    eyebrow: "Braiding salon in {city}",
+    eyebrow: "Braiding salon · {city}",
     title: "Beautiful braids, booked in a minute",
     lead: "Pick your style, choose a time that suits you and we'll confirm it. No calls, no waiting on hold.",
     book: "Book an appointment",

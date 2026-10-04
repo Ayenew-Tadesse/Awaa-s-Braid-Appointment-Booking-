@@ -5,8 +5,10 @@ import { isOpen } from "../domain/types";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-// Every day of a week, so weekends and days off are all covered.
-const mondays = Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2026, 9, 5 + i, 9)));
+// Every day of a week, so weekends and days off are all covered, plus the days
+// the clocks change (DC area: March 8 and November 1, 2026).
+const mondays = [...Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(2026, 9, 5 + i, 14))),
+  new Date(Date.UTC(2026, 2, 6, 14)), new Date(Date.UTC(2026, 9, 29, 14))];
 
 describe("the demo salon", () => {
   it.each(mondays)("keeps every appointment inside the stylist's hours (built %s)", (now) => {
@@ -29,7 +31,7 @@ describe("the demo salon", () => {
   });
 
   it("has past, today's and upcoming appointments, and the demo customer has some of each", () => {
-    const now = new Date(Date.UTC(2026, 9, 6, 6)); // a Tuesday morning in Addis Ababa
+    const now = new Date(Date.UTC(2026, 9, 6, 11)); // a Tuesday morning in the DC area
     const w = buildWorld(now);
     const today = localDay(now, w.salon.timezone);
     const days = w.appointments.map((a) => localDay(new Date(a.starts_at), w.salon.timezone));
@@ -42,7 +44,7 @@ describe("the demo salon", () => {
   });
 
   it("prices and times each appointment from its style and options", () => {
-    const w = buildWorld(new Date(Date.UTC(2026, 9, 6, 6)));
+    const w = buildWorld(new Date(Date.UTC(2026, 9, 6, 11)));
     for (const a of w.appointments) {
       const s = w.styles.find((x) => x.id === a.style_id)!;
       const o = w.options.filter((x) => a.options.some((y) => y.id === x.id));

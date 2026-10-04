@@ -1,7 +1,8 @@
 // Times and money as the salon sees them: everything is shown in the salon's
-// time zone (Addis Ababa by default), whatever the phone's own setting.
+// time zone (US Eastern for the DC area), whatever the phone's own setting,
+// with daylight saving handled.
 
-/** The time zone's offset from UTC at that moment, in minutes (Addis Ababa: +180). */
+/** The time zone's offset from UTC at that moment, in minutes (New York in summer: -240). */
 export function tzOffsetMinutes(at: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
@@ -52,7 +53,8 @@ export function formatDuration(minutes: number): string {
   return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
 }
 
-/** "ETB 2,500" */
-export function formatMoney(amount: number, currency = "ETB"): string {
-  return `${currency} ${Math.round(amount).toLocaleString("en-US")}`;
+/** "$220", "$1,250", "$45.50" (cents only when there are some). */
+export function formatMoney(amount: number, currency = "USD"): string {
+  const cents = Math.round(amount * 100) % 100 !== 0;
+  return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }).format(amount);
 }

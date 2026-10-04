@@ -1,6 +1,6 @@
 // The demo salon: Awaa Braids with its styles, stylists, customers and a
-// realistic diary around today. Every person here is fictional; prices are
-// sample prices. Built fresh relative to "now", so the diary always has
+// realistic diary around today. Every person here is fictional (phone numbers
+// are in the 555-01xx range kept for fiction); prices are sample prices in US dollars. Built fresh relative to "now", so the diary always has
 // past, today's and upcoming appointments.
 import type { Appointment, AppointmentStatus, OptionKind, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { addDays, at, localDay, weekdayOf } from "../domain/time";
@@ -25,30 +25,30 @@ export type World = {
 // Stable ids that read as what they are (and are valid UUIDs).
 const id = (prefix: string, n: number) => `${prefix}000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-const TZ = "Africa/Addis_Ababa";
+const TZ = "America/New_York"; // the Washington, DC area
 
 const SALON: Salon = {
   id: id("5a", 1), name: "Awaa Braids", tagline: "Braids done with care, booked in a minute.",
-  phone: "+251 900 000 000", address: "Bole, near Edna Mall (demo address)", city: "Addis Ababa",
-  timezone: TZ, currency: "ETB", slot_minutes: 30, min_notice_hours: 2, booking_window_days: 60, cancel_hours: 24,
+  phone: "(202) 555-0100", address: "Georgia Avenue, Silver Spring, MD (demo address)", city: "Washington, DC area",
+  timezone: TZ, currency: "USD", slot_minutes: 30, min_notice_hours: 2, booking_window_days: 60, cancel_hours: 24,
 };
 
 type StyleSeed = [name: string, category: Style["category"], minutes: number, price: number, description: string, options: "braids" | "cornrows" | "none"];
 const STYLES: StyleSeed[] = [
-  ["Knotless braids", "braids", 240, 2500, "Light, flat braids that start with your own hair, so they're gentle on the scalp.", "braids"],
-  ["Box braids", "braids", 210, 2200, "Classic square-parted braids that last for weeks.", "braids"],
-  ["Fulani braids", "braids", 180, 2300, "Cornrows at the front and braids at the back, with beads if you like.", "braids"],
-  ["Passion twists", "twists", 180, 2000, "Soft, bohemian two-strand twists.", "braids"],
-  ["Cornrows", "cornrows", 90, 800, "Neat rows close to the scalp, straight back or in a design.", "cornrows"],
-  ["Kids' braids", "kids", 90, 700, "Gentle styles for children under 12, with breaks when they need them.", "cornrows"],
-  ["Takedown and wash", "other", 60, 400, "We take out your old braids and wash your hair.", "none"],
+  ["Knotless braids", "braids", 240, 250, "Light, flat braids that start with your own hair, so they're gentle on the scalp.", "braids"],
+  ["Box braids", "braids", 210, 210, "Classic square-parted braids that last for weeks.", "braids"],
+  ["Fulani braids", "braids", 180, 230, "Cornrows at the front and braids at the back, with beads if you like.", "braids"],
+  ["Passion twists", "twists", 180, 200, "Soft, bohemian two-strand twists.", "braids"],
+  ["Cornrows", "cornrows", 90, 70, "Neat rows close to the scalp, straight back or in a design.", "cornrows"],
+  ["Kids' braids", "kids", 90, 60, "Gentle styles for children under 12, with breaks when they need them.", "cornrows"],
+  ["Takedown and wash", "other", 60, 40, "We take out your old braids and wash your hair.", "none"],
 ];
 const BRAID_OPTIONS: [OptionKind, string, number, number][] = [
-  ["size", "Small", 60, 800], ["size", "Medium", 0, 0], ["size", "Large", -45, -300],
-  ["length", "Shoulder", 0, 0], ["length", "Mid-back", 45, 400], ["length", "Waist", 90, 800],
+  ["size", "Small", 60, 60], ["size", "Medium", 0, 0], ["size", "Large", -45, -30],
+  ["length", "Shoulder", 0, 0], ["length", "Mid-back", 45, 40], ["length", "Waist", 90, 80],
 ];
 const CORNROW_OPTIONS: [OptionKind, string, number, number][] = [
-  ["extra", "Straight back", 0, 0], ["extra", "Design", 30, 300],
+  ["extra", "Straight back", 0, 0], ["extra", "Design", 30, 25],
 ];
 
 const STYLISTS: [string, string, number[]][] = [
@@ -60,16 +60,16 @@ const STYLISTS: [string, string, number[]][] = [
 
 // Customers (fictional). The first is the demo customer account.
 const CUSTOMERS: [string, string][] = [
-  ["Hana Bekele", "0911 000 101"], ["Liya Tesfaye", "0911 000 102"], ["Ruth Alemu", "0911 000 103"],
-  ["Saba Girma", "0911 000 104"], ["Eden Mulugeta", "0911 000 105"], ["Mahlet Kebede", "0911 000 106"],
-  ["Bethlehem Haile", "0911 000 107"], ["Yordanos Tadesse", "0911 000 108"],
+  ["Hana Bekele", "(202) 555-0101"], ["Liya Tesfaye", "(301) 555-0102"], ["Ruth Alemu", "(240) 555-0103"],
+  ["Saba Girma", "(703) 555-0104"], ["Eden Mulugeta", "(571) 555-0105"], ["Mahlet Kebede", "(202) 555-0106"],
+  ["Bethlehem Haile", "(301) 555-0107"], ["Yordanos Tadesse", "(703) 555-0108"],
 ];
 
 export function buildWorld(now = new Date()): World {
   const today = localDay(now, TZ);
   const created = new Date(now.getTime() - 40 * 86400000).toISOString();
 
-  const admin: Profile = { id: id("ad", 1), role: "admin", full_name: "Salon Manager", phone: "0911 000 100", created_at: created };
+  const admin: Profile = { id: id("ad", 1), role: "admin", full_name: "Salon Manager", phone: "(202) 555-0110", created_at: created };
   const customers: Profile[] = CUSTOMERS.map(([full_name, phone], i) => ({ id: id("c0", i + 1), role: "customer", full_name, phone, created_at: created }));
 
   const styles: Style[] = STYLES.map(([name, category, duration_minutes, price, description], i) => ({

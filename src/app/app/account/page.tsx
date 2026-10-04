@@ -25,7 +25,8 @@ export default function Account() {
         </Card>
         <Card title={t("account.salon")}>
           <p className="font-semibold">{s.name}</p>
-          {s.address && <p className="muted text-sm">{s.address}{s.city ? `, ${s.city}` : ""}</p>}
+          {s.address && <p className="muted text-sm">{s.address}</p>}
+          {s.city && <p className="muted text-sm">{s.city}</p>}
           {s.phone && <a className="btn btn-ghost btn-sm mt-3" href={`tel:${s.phone.replace(/\s/g, "")}`}><Icon name="phone" size={16} />{t("account.call")}</a>}
         </Card>
         <button type="button" className="btn btn-ghost w-full" onClick={signOut} data-sign-out><Icon name="out" size={18} />{t("nav.signOut")}</button>
