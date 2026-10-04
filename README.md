@@ -8,7 +8,7 @@ waiting and the week at a glance. Built phone first.
 "Continue as Salon admin". The demo is a fictional salon with fictional people,
 kept in your browser.
 
-## What's in it (milestone 1: foundation)
+## What's in it
 
 - **Front page:** how booking works, styles with prices and times, how to find the salon.
 - **Sign in / create an account:** demo accounts, or email and password with a real salon.
@@ -16,7 +16,9 @@ kept in your browser.
 - **The salon:** today's diary with each customer's phone number, requests to confirm, the week's bookings and expected income.
 - **The database** (`supabase/migrations`): the salon, styles and options, stylists and their hours, time off and appointments, with the security rules below. Booking and cancelling run on the server (`book_appointment`, `cancel_appointment`) so the salon's rules can't be skipped.
 
-Coming next: the booking screens (milestone 2), the salon's tools to confirm, reschedule and manage styles and hours (3), reminders and Amharic (4).
+- **Booking (milestone 2):** four steps on a phone: a style, then size and length with the price and time adding up as you choose, then a day, any stylist or a favourite and a time that is really free, then review and send. Requests wait for the salon to confirm. Customers can cancel a request any time before it starts, and a confirmed appointment up to 24 hours before; closer than that, the app shows the salon's number.
+
+Coming next: the salon's tools to confirm, reschedule and manage styles and hours (3), reminders and Amharic (4).
 
 ## Security
 

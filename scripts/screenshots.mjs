@@ -42,7 +42,27 @@ await page.click("[data-tab=past]");
 await page.locator("[data-tab=past]").evaluate((el) => el.scrollIntoView({ block: "start" }));
 await shot("customer-past", "Past appointments");
 
-// The salon: today at a glance, then the requests waiting.
+// Booking: style, size and length, a free time, then review.
+await page.goto(`${BASE}/app/book`);
+await page.waitForSelector("[data-pick-style]");
+await shot("book-1-style", "Choose a style");
+await page.click('[data-pick-style="Knotless braids"]');
+await page.click('[data-option="Medium"]');
+await page.click('[data-option="Mid-back"]');
+await shot("book-2-options", "Size and length");
+await page.click("[data-next]");
+await page.waitForSelector("[data-days] button");
+await page.locator("[data-days] button:not([disabled])").nth(1).click();
+await page.locator("[data-slots] button").nth(2).click();
+await shot("book-3-time", "Date and time");
+await page.click("[data-next]");
+await page.fill("#note", "Black hair, please");
+await shot("book-4-review", "Review and send");
+await page.click("[data-confirm]");
+await page.waitForSelector("[data-booking-sent]");
+await shot("book-5-sent", "Request sent");
+
+// The salon: today at a glance, then the requests waiting (the new one among them).
 await page.goto(`${BASE}/app/account`);
 await page.click("[data-sign-out]");
 await page.waitForURL(/\/login$/);

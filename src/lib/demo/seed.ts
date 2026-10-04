@@ -48,7 +48,7 @@ const BRAID_OPTIONS: [OptionKind, string, number, number][] = [
   ["length", "Shoulder", 0, 0], ["length", "Mid-back", 45, 40], ["length", "Waist", 90, 80],
 ];
 const CORNROW_OPTIONS: [OptionKind, string, number, number][] = [
-  ["extra", "Straight back", 0, 0], ["extra", "Design", 30, 25],
+  ["extra", "Pattern design", 30, 25],
 ];
 
 const STYLISTS: [string, string, number[]][] = [
@@ -97,19 +97,19 @@ export function buildWorld(now = new Date()): World {
   type Seed = [number, string, number, number, number, string[], AppointmentStatus];
   const DIARY: Seed[] = [
     [-9, "09:00", 0, 0, 0, ["Medium", "Mid-back"], "completed"],
-    [-6, "14:00", 2, 0, 4, ["Straight back"], "completed"],
+    [-6, "14:00", 2, 0, 4, [], "completed"],
     [-5, "09:00", 1, 1, 2, ["Medium", "Shoulder"], "completed"],
     [-4, "14:00", 0, 2, 1, ["Large", "Shoulder"], "no_show"],
     [-3, "09:30", 2, 3, 3, ["Medium", "Shoulder"], "completed"],
-    [-2, "10:00", 1, 4, 4, ["Design"], "cancelled"],
+    [-2, "10:00", 1, 4, 4, ["Pattern design"], "cancelled"],
     [-1, "14:00", 0, 5, 6, [], "completed"],
     [0, "09:00", 0, 6, 0, ["Medium", "Shoulder"], "confirmed"],
-    [0, "10:00", 2, 7, 5, ["Straight back"], "confirmed"],
-    [0, "14:30", 1, 1, 4, ["Design"], "pending"],
+    [0, "10:00", 2, 7, 5, [], "confirmed"],
+    [0, "14:30", 1, 1, 4, ["Pattern design"], "pending"],
     [0, "15:00", 2, 3, 3, ["Large", "Shoulder"], "pending"],
     [3, "09:00", 0, 0, 0, ["Small", "Mid-back"], "confirmed"],
     [4, "14:00", 1, 2, 2, ["Medium", "Waist"], "pending"],
-    [5, "10:00", 2, 5, 4, ["Straight back"], "confirmed"],
+    [5, "10:00", 2, 5, 4, [], "confirmed"],
     [8, "14:00", 2, 0, 3, ["Medium", "Shoulder"], "pending"],
     [9, "09:00", 0, 4, 1, ["Medium", "Mid-back"], "pending"],
   ];

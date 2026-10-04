@@ -5,7 +5,7 @@ import { formatDay, formatMoney, formatTime } from "@/lib/domain/time";
 import { useT } from "@/lib/i18n";
 import { StatusBadge } from "./ui";
 
-export function AppointmentCard({ a, data, showCustomer = false }: { a: Appointment; data: Dataset; showCustomer?: boolean }) {
+export function AppointmentCard({ a, data, showCustomer = false, actions }: { a: Appointment; data: Dataset; showCustomer?: boolean; actions?: React.ReactNode }) {
   const t = useT();
   const tz = data.salon.timezone;
   const stylist = data.stylists.find((s) => s.id === a.stylist_id)?.name ?? "";
@@ -29,6 +29,7 @@ export function AppointmentCard({ a, data, showCustomer = false }: { a: Appointm
           {t("home.with", { name: stylist })} · {formatMoney(a.price, data.salon.currency)}
         </p>
         {showCustomer && customer?.phone && <a className="mt-1 inline-block text-sm text-brand underline" href={`tel:${customer.phone.replace(/\s/g, "")}`}>{customer.phone}</a>}
+        {actions}
       </div>
     </article>
   );

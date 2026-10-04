@@ -3,7 +3,8 @@
 // appointments and profile, whatever this code asks for).
 import type { Appointment, Dataset, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { supabase } from "../supabase/client";
-import type { Store } from "./store";
+import type { Busy } from "../domain/booking";
+import type { NewBooking, Store } from "./store";
 
 async function rows<T>(q: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const { data, error } = await q;
@@ -43,4 +44,25 @@ export class SupabaseStore implements Store {
   }
 
   async signOut() { await supabase().auth.signOut(); }
+
+  async busyTimes(from: string, to: string): Promise<Busy[]> {
+    const { data, error } = await supabase().rpc("busy_times", { p_from: from, p_to: to });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Busy[];
+  }
+
+  // The server works out the price and time and checks every rule (book_appointment).
+  async book(b: NewBooking): Promise<Appointment> {
+    const { data, error } = await supabase().rpc("book_appointment", {
+      p_style: b.styleId, p_options: b.optionIds, p_stylist: b.stylistId, p_starts_at: b.startsAt, p_note: b.note || null,
+    });
+    if (error) throw new Error(error.message);
+    const a = data as Appointment;
+    return { ...a, price: Number(a.price) };
+  }
+
+  async cancel(id: string) {
+    const { error } = await supabase().rpc("cancel_appointment", { p_id: id });
+    if (error) throw new Error(error.message);
+  }
 }
