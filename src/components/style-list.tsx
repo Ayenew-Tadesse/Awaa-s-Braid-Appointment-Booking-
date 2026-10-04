@@ -1,5 +1,6 @@
 "use client";
 // The styles with their price, time and options: on the home page, and in the app.
+import Link from "next/link";
 import type { Style, StyleOption } from "@/lib/domain/types";
 import { formatDuration, formatMoney } from "@/lib/domain/time";
 import { useT } from "@/lib/i18n";
@@ -14,7 +15,7 @@ export function styleRange(style: Style, options: StyleOption[]) {
   return { price: Math.max(0, style.price + minOf((o) => o.extra_price)), minutes: Math.max(15, style.duration_minutes + minOf((o) => o.extra_minutes)) };
 }
 
-export function StyleList({ styles, options, currency, limit }: { styles: Style[]; options: StyleOption[]; currency: string; limit?: number }) {
+export function StyleList({ styles, options, currency, limit, bookable = false }: { styles: Style[]; options: StyleOption[]; currency: string; limit?: number; bookable?: boolean }) {
   const t = useT();
   const shown = [...styles].sort((a, b) => a.sort - b.sort).slice(0, limit);
   return (
@@ -39,6 +40,7 @@ export function StyleList({ styles, options, currency, limit }: { styles: Style[
                   {[group("size") && `${t("styles.sizes")}: ${group("size")}`, group("length") && `${t("styles.lengths")}: ${group("length")}`, group("extra") && `${t("styles.extras")}: ${group("extra")}`].filter(Boolean).join(" · ")}
                 </p>
               )}
+              {bookable && s.active && <Link href={`/app/book?style=${s.id}`} className="btn btn-primary btn-sm mt-2.5" data-book-style>{t("nav.book")}</Link>}
             </div>
           </li>
         );

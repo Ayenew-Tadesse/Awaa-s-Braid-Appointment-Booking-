@@ -10,7 +10,7 @@ export default function Styles() {
   return (
     <>
       <PageHeader title={t("styles.title")} subtitle={t("styles.lead")} />
-      <StyleList styles={data.styles} options={data.options} currency={data.salon.currency} />
+      <StyleList styles={data.styles} options={data.options} currency={data.salon.currency} bookable={data.me.role === "customer"} />
     </>
   );
 }
