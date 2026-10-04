@@ -7,7 +7,7 @@ test("the front page explains the salon, lists styles with prices, and leads to 
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Beautiful braids, booked in a minute");
   await expect(page.locator("[data-style]")).toHaveCount(7);
-  await expect(page.locator('[data-style="Knotless braids"]')).toContainText("From ETB 2,200");
+  await expect(page.locator('[data-style="Knotless braids"]')).toContainText("From $220");
   await expect(page.getByText("You pay at the salon on the day.")).toBeVisible();
   await expect(page.getByText("This is a demo with a fictional salon and fictional people.")).toBeVisible();
   await noSideScroll(page);
@@ -20,7 +20,7 @@ test("a customer sees only their own appointments, upcoming and past", async ({ 
   await page.click("[data-demo=customer]");
   await expect(page.getByRole("heading", { name: "Hello, Hana" })).toBeVisible();
   await expect(page.locator("[data-next]")).toContainText("Knotless braids");
-  await expect(page.locator("[data-next]")).toContainText("Pay at the salon: ETB");
+  await expect(page.locator("[data-next]")).toContainText("Pay at the salon: $");
   const upcoming = page.locator("[role=tabpanel] [data-appointment]");
   await expect(upcoming).toHaveCount(2);
   await page.click("[data-tab=past]");

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildWorld } from "../demo/seed";
 import { visibleTo } from "./visibility";
 
-const w = buildWorld(new Date(Date.UTC(2026, 9, 6, 6)));
+const w = buildWorld(new Date(Date.UTC(2026, 9, 6, 11)));
 const customer = w.accounts[0].profile_id;
 const admin = w.accounts[1].profile_id;
 
