@@ -1,3 +1,38 @@
 # Awaa Braids
 
-Book braiding appointments from your phone. The app is being built in milestones (see the pull requests).
+Book braiding appointments from your phone. Customers pick a style, choose a time
+that is really free and the salon confirms it; the salon sees its day, the requests
+waiting and the week at a glance. Built phone first.
+
+**Try it without any setup:** run it and choose "Continue as Customer" or
+"Continue as Salon admin". The demo is a fictional salon with fictional people,
+kept in your browser.
+
+## What's in it (milestone 1: foundation)
+
+- **Front page:** how booking works, styles with prices and times, how to find the salon.
+- **Sign in / create an account:** demo accounts, or email and password with a real salon.
+- **Customers:** your next appointment, upcoming and past appointments, styles and prices.
+- **The salon:** today's diary with each customer's phone number, requests to confirm, the week's bookings and expected income.
+- **The database** (`supabase/migrations`): the salon, styles and options, stylists and their hours, time off and appointments, with the security rules below. Booking and cancelling run on the server (`book_appointment`, `cancel_appointment`) so the salon's rules can't be skipped.
+
+Coming next: the booking screens (milestone 2), the salon's tools to confirm, reschedule and manage styles and hours (3), reminders and Amharic (4).
+
+## Security
+
+- Every table has Row Level Security. A customer only ever sees their own profile and appointments; nobody sees another customer's name, phone or bookings.
+- Anyone who signs up is a customer. Only the salon (an admin) can make someone an admin.
+- Customers can't write appointments directly: booking goes through `book_appointment`, which works out the time and price from the style on the server and checks the hours, notice, booking window, time off and the 30-minute grid. The database itself refuses two open appointments that overlap for the same stylist.
+- The website only has the public (anon) key. There is no service-role key anywhere in this app.
+
+## Run it
+
+```bash
+npm install
+npm run dev          # http://localhost:3000 (demo mode without Supabase values)
+npm test             # unit tests
+npm run test:db      # database security tests (needs PostgreSQL 15+)
+npm run test:e2e     # browser tests at phone, tablet and laptop widths
+```
+
+To connect a real salon, see [docs/setup.md](docs/setup.md).
