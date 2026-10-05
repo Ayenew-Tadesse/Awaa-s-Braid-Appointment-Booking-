@@ -1,0 +1,105 @@
+{
+  "app": "Awaa Braids",
+  "device": "phone",
+  "size": "390x844",
+  "taken_at": "2026-10-05T06:47:36.342Z",
+  "commit": "f53214477a9a3c72b0eb4febd60ac6ed0183f695",
+  "shots": [
+    {
+      "file": "phone/landing.jpg",
+      "label": "Front page"
+    },
+    {
+      "file": "phone/styles.jpg",
+      "label": "Styles and prices"
+    },
+    {
+      "file": "phone/customer-home.jpg",
+      "label": "Your next appointment"
+    },
+    {
+      "file": "phone/customer-past.jpg",
+      "label": "Past appointments"
+    },
+    {
+      "file": "phone/book-1-style.jpg",
+      "label": "Choose a style"
+    },
+    {
+      "file": "phone/book-2-options.jpg",
+      "label": "Size and length"
+    },
+    {
+      "file": "phone/book-3-time.jpg",
+      "label": "Date and time"
+    },
+    {
+      "file": "phone/book-address.jpg",
+      "label": "Where should we come?"
+    },
+    {
+      "file": "phone/book-4-review.jpg",
+      "label": "Review and send"
+    },
+    {
+      "file": "phone/book-5-sent.jpg",
+      "label": "Request sent"
+    },
+    {
+      "file": "phone/notifications.jpg",
+      "label": "Notifications"
+    },
+    {
+      "file": "phone/amharic-home.jpg",
+      "label": "In Amharic"
+    },
+    {
+      "file": "phone/admin-today.jpg",
+      "label": "The salon's day"
+    },
+    {
+      "file": "phone/admin-requests.jpg",
+      "label": "Requests to confirm"
+    },
+    {
+      "file": "phone/salon-sheet.jpg",
+      "label": "Confirm, decline or move, with the address and a map link"
+    },
+    {
+      "file": "phone/salon-calendar.jpg",
+      "label": "The day, per stylist"
+    },
+    {
+      "file": "phone/salon-style.jpg",
+      "label": "Edit a style and its options"
+    },
+    {
+      "file": "phone/salon-stylist.jpg",
+      "label": "A stylist's schedule: week, time off and upcoming jobs"
+    },
+    {
+      "file": "phone/salon-hours.jpg",
+      "label": "A stylist's working week"
+    },
+    {
+      "file": "phone/salon-visits.jpg",
+      "label": "Home visits: the area and travel time"
+    },
+    {
+      "file": "phone/salon-reports.jpg",
+      "label": "Reports"
+    },
+    {
+      "file": "phone/stylist-jobs.jpg",
+      "label": "A stylist's own jobs, with addresses and map links"
+    },
+    {
+      "file": "phone/stylist-week.jpg",
+      "label": "A stylist's week"
+    },
+    {
+      "file": "phone/tour.jpg",
+      "label": "The guided demo tour"
+    }
+  ]
+}
