@@ -3,7 +3,7 @@
 // (tap one to act on it). Week: Monday to Sunday at a glance; tap a day to open it.
 import { useState } from "react";
 import { useApp } from "@/lib/data/app-context";
-import { addDays, at, formatDay, formatTime, localDay, weekdayOf } from "@/lib/domain/time";
+import { addDays, at, formatDay, formatTime, localDay, weekdayOf, getDateLocale } from "@/lib/domain/time";
 import type { Appointment } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { AppointmentCard } from "./appointment-card";
@@ -79,8 +79,8 @@ export function Calendar() {
                 <button type="button" onClick={() => { setDay(d); setView("day"); }} data-week-day={d}
                   className={`card flex w-full items-center gap-3 p-3 text-left hover:border-brand ${d === today ? "border-brand" : ""}`}>
                   <span className="w-16 shrink-0">
-                    <span className="muted block text-xs">{new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(new Date(noon(d)))}</span>
-                    <span className="block font-semibold">{new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(new Date(noon(d)))}</span>
+                    <span className="muted block text-xs">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, weekday: "short" }).format(new Date(noon(d)))}</span>
+                    <span className="block font-semibold">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, month: "short", day: "numeric" }).format(new Date(noon(d)))}</span>
                   </span>
                   <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                     {stylists.map((s) => {

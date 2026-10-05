@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { I18nProvider } from "@/lib/i18n";
+import { SkipLink } from "@/components/skip-link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" dir="ltr" className="h-full antialiased">
       <body className="min-h-full">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider><SkipLink />{children}</I18nProvider>
       </body>
     </html>
   );

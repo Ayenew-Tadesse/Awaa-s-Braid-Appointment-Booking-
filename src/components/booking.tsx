@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/data/app-context";
 import { errorText } from "@/lib/data/store";
 import { bookableDays, freeSlots, MAX_UPCOMING, optionsProblem, quote, type Busy, type Slot } from "@/lib/domain/booking";
-import { addDays, at, formatDay, formatDuration, formatMoney, formatTime, localDay } from "@/lib/domain/time";
+import { addDays, at, formatDay, formatDuration, formatMoney, formatTime, localDay, getDateLocale } from "@/lib/domain/time";
 import { isOpen, type Style, type StyleOption } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { Icon } from "./icons";
@@ -197,9 +197,9 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
                   <button key={d} type="button" role="radio" aria-checked={day === d} data-day={d} disabled={free === 0}
                     onClick={() => { setDay(d); setSlot(null); }}
                     className={`flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2 text-sm disabled:opacity-45 ${day === d ? "border-brand bg-brand text-on-brand" : "border-line bg-surface"}`}>
-                    <span className="text-xs opacity-80">{new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(new Date(noon))}</span>
-                    <span className="text-lg font-semibold leading-tight">{new Intl.DateTimeFormat("en-US", { timeZone: tz, day: "numeric" }).format(new Date(noon))}</span>
-                    <span className="text-[0.7rem] opacity-80">{free === 0 ? t("book.noTimesShort") : new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short" }).format(new Date(noon))}</span>
+                    <span className="text-xs opacity-80">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, weekday: "short" }).format(new Date(noon))}</span>
+                    <span className="text-lg font-semibold leading-tight">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, day: "numeric" }).format(new Date(noon))}</span>
+                    <span className="text-[0.7rem] opacity-80">{free === 0 ? t("book.noTimesShort") : new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, month: "short" }).format(new Date(noon))}</span>
                   </button>
                 );
               })}

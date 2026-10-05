@@ -7,7 +7,7 @@ import { useApp } from "@/lib/data/app-context";
 import { errorText } from "@/lib/data/store";
 import { busyFrom, freeSlots, type Slot } from "@/lib/domain/booking";
 import { ACTION_STATUS, salonActions, type SalonAction } from "@/lib/domain/salon";
-import { addDays, at, formatDay, formatDuration, formatMoney, formatSlot, formatTime, localDay } from "@/lib/domain/time";
+import { addDays, at, formatDay, formatDuration, formatMoney, formatSlot, formatTime, localDay, getDateLocale } from "@/lib/domain/time";
 import type { Appointment } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { ConfirmDialog } from "./confirm-dialog";
@@ -107,8 +107,8 @@ function MoveSheet({ a, minutes, onDone, onBack }: { a: Appointment; minutes: nu
           return (
             <button key={d} type="button" role="radio" aria-checked={day === d} onClick={() => { setDay(d); setSlot(null); }} data-day={d}
               className={`flex w-14 shrink-0 flex-col items-center rounded-2xl border py-1.5 text-sm ${day === d ? "border-brand bg-brand text-on-brand" : "border-line bg-surface"}`}>
-              <span className="text-xs opacity-80">{new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(new Date(noon))}</span>
-              <span className="font-semibold">{new Intl.DateTimeFormat("en-US", { timeZone: tz, day: "numeric" }).format(new Date(noon))}</span>
+              <span className="text-xs opacity-80">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, weekday: "short" }).format(new Date(noon))}</span>
+              <span className="font-semibold">{new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, day: "numeric" }).format(new Date(noon))}</span>
             </button>
           );
         })}

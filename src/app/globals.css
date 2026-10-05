@@ -13,11 +13,12 @@
   --brand-strong: #561f47;
   --brand-soft: #f4e6ef;
   --on-brand: #ffffff;
-  --accent: #b7791f;
+  /* Gold and amber deep enough for small text on their soft backgrounds (WCAG AA, 4.5:1). */
+  --accent: #8a5a12;
   --accent-soft: #fbf0dc;
   --good: #1f7a4d;
   --good-soft: #e2f3ea;
-  --warn: #a86400;
+  --warn: #8a5200;
   --warn-soft: #fdf0dc;
   --bad: #b3261e;
   --bad-soft: #fbe6e4;

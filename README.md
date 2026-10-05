@@ -23,7 +23,12 @@ kept in your browser.
   - Calendar: each stylist's day (hours, time off, appointments) and the week at a glance.
   - Salon: styles and prices with sizes, lengths and extras (hide a style to stop bookings); stylists with their working week (with breaks) and time off; reports (bookings per week, most booked styles, no-show and cancellation rates, earned and expected).
 
-Coming next: reminders, polish and Amharic (4).
+- **Notifications and polish (milestone 4):**
+  - A bell with what's new. The database itself writes a note when an appointment changes: the customer hears when it's confirmed, moved, declined or cancelled by the salon; the salon hears about each new request and each customer cancellation. Customers also see a reminder for anything in the next 24 hours (in the app; no texts or emails are sent).
+  - English and Amharic (አማርኛ), including dates and times; switch on the front page, sign-in or Account.
+  - An offline banner, "Skip to content", focus kept inside open sheets, and automatic accessibility checks (axe, WCAG 2.1 AA) on every main screen in light and dark mode.
+
+Coming next: a guided demo tour, the case study and connecting a real salon (5).
 
 ## Security
 

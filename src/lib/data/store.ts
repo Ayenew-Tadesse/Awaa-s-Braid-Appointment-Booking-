@@ -23,6 +23,9 @@ export interface Store {
   /** Cancel your own appointment (a waiting request any time; a confirmed one up to the salon's notice). */
   cancel(id: string): Promise<void>;
 
+  /** Mark your own notifications as read. */
+  markRead(ids: string[]): Promise<void>;
+
   // The salon (admins only; the database refuses everyone else).
   /** Confirm, decline or cancel (cancelled), mark done (completed) or missed (no_show). */
   setStatus(id: string, status: Exclude<AppointmentStatus, "pending">): Promise<void>;

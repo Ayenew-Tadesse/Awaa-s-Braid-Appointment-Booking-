@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Icon, Logo, type IconName } from "@/components/icons";
+import { LanguageSwitch } from "@/components/language-switch";
 import { Spinner } from "@/components/ui";
 import { loadWorld, resetDemo, setDemoAccount } from "@/lib/data/demo-store";
 import { DEMO_PASSWORD } from "@/lib/demo/seed";
@@ -67,9 +68,12 @@ export default function Login() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-4 py-5">
-      <Link href="/" className="flex items-center gap-2 font-semibold"><Logo size={30} />{t("app.name")}</Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link href="/" className="flex items-center gap-2 font-semibold"><Logo size={30} />{t("app.name")}</Link>
+        <LanguageSwitch />
+      </div>
 
-      <main className="flex-1 py-8">
+      <main id="main" className="flex-1 py-8">
         <h1 className="text-2xl font-semibold">{t("auth.demoTitle")}</h1>
         <p className="muted mt-1 text-sm">{t("auth.demoHint")}</p>
         <ul className="mt-4 grid gap-2.5">

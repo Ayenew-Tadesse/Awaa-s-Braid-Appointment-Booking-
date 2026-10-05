@@ -7,7 +7,7 @@ import { Icon } from "@/components/icons";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 import { useApp } from "@/lib/data/app-context";
 import { salonReport } from "@/lib/domain/salon";
-import { at, formatMoney } from "@/lib/domain/time";
+import { at, formatMoney, getDateLocale } from "@/lib/domain/time";
 import { useT } from "@/lib/i18n";
 
 export default function Reports() {
@@ -19,7 +19,7 @@ export default function Reports() {
   const r = salonReport(data.appointments, now, tz);
   const pct = (v: number | null) => (v == null ? t("salon.none") : `${Math.round(v * 100)}%`);
   const max = Math.max(1, ...r.weeks.map((w) => w.booked));
-  const label = (day: string) => new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(at(day, "12:00", tz));
+  const label = (day: string) => new Intl.DateTimeFormat(getDateLocale(), { timeZone: tz, month: "short", day: "numeric" }).format(at(day, "12:00", tz));
   return (
     <>
       <Link href="/app/salon" className="muted mb-2 inline-flex items-center gap-1 text-sm"><Icon name="chevron" size={16} className="rotate-180" />{t("salon.title")}</Link>

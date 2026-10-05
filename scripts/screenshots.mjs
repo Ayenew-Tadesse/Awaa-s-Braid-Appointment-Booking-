@@ -62,6 +62,20 @@ await page.click("[data-confirm]");
 await page.waitForSelector("[data-booking-sent]");
 await shot("book-5-sent", "Request sent");
 
+// Notifications: what changed about her appointments, and tomorrow's reminder.
+await page.goto(`${BASE}/app/notifications`);
+await page.waitForSelector("main h1");
+await shot("notifications", "Notifications");
+
+// The same home screen in Amharic.
+await page.goto(`${BASE}/app/account`);
+await page.getByRole("button", { name: "አማርኛ" }).click();
+await page.goto(`${BASE}/app`);
+await page.waitForSelector("[data-next]");
+await shot("amharic-home", "In Amharic");
+await page.goto(`${BASE}/app/account`);
+await page.getByRole("button", { name: "English" }).click();
+
 // The salon: today at a glance, then the requests waiting (the new one among them).
 await page.goto(`${BASE}/app/account`);
 await page.click("[data-sign-out]");

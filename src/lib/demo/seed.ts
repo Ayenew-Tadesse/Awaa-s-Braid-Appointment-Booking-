@@ -2,7 +2,7 @@
 // realistic diary around today. Every person here is fictional (phone numbers
 // are in the 555-01xx range kept for fiction); prices are sample prices in US dollars. Built fresh relative to "now", so the diary always has
 // past, today's and upcoming appointments.
-import type { Appointment, AppointmentStatus, OptionKind, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
+import type { Appointment, AppointmentStatus, Notification, NotificationKind, OptionKind, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { addDays, at, localDay, weekdayOf } from "../domain/time";
 
 export const DEMO_PASSWORD = "demo1234";
@@ -19,8 +19,18 @@ export type World = {
   hours: WorkingHours[];
   timeOff: TimeOff[];
   appointments: Appointment[];
+  notifications: Notification[];
   accounts: DemoAccount[];
 };
+
+/** A notification about an appointment, as the database's trigger makes it (20261008000001_notifications.sql). */
+export function noteFor(w: Pick<World, "profiles" | "stylists">, user: string, kind: NotificationKind, a: Appointment, id: string, at: string): Notification {
+  return {
+    id, user_id: user, kind, appointment_id: a.id, created_at: at, read_at: null,
+    data: { style: a.style_name, starts_at: a.starts_at, ends_at: a.ends_at,
+      customer: w.profiles.find((p) => p.id === a.customer_id)?.full_name, stylist: w.stylists.find((s) => s.id === a.stylist_id)?.name },
+  };
+}
 
 // Stable ids that read as what they are (and are valid UUIDs).
 const id = (prefix: string, n: number) => `${prefix}000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -136,8 +146,20 @@ export function buildWorld(now = new Date()): World {
   while (STYLISTS[1][2].includes(weekdayOf(away))) away = addDays(away, 1);
   const timeOff: TimeOff[] = [{ id: id("70", 1), stylist_id: stylists[1].id, starts_at: at(away, "09:00", TZ).toISOString(), ends_at: at(away, "19:00", TZ).toISOString(), reason: "Training day" }];
 
+  // What the notification trigger would have sent: the salon heard about each open
+  // request; customers heard about their confirmed ones. A few already read.
+  const profiles = [admin, ...customers];
+  const notifications: Notification[] = [];
+  appointments.forEach((a, i) => {
+    const when = new Date(Math.min(now.getTime() - (i + 1) * 3600000, Date.parse(a.starts_at) - 86400000)).toISOString();
+    if (a.status === "pending") notifications.push(noteFor({ profiles, stylists }, admin.id, "booked", a, id("a2", i + 1), when));
+    if (a.status === "confirmed" && Date.parse(a.starts_at) > now.getTime()) notifications.push(noteFor({ profiles, stylists }, a.customer_id, "confirmed", a, id("a3", i + 1), when));
+  });
+  // Everyone's two newest are still unread.
+  for (const p of profiles) notifications.filter((n) => n.user_id === p.id).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(2).forEach((n) => { n.read_at = n.created_at; });
+
   return {
-    builtOn: today, salon: SALON, profiles: [admin, ...customers], styles, options, stylists, hours, timeOff, appointments,
+    builtOn: today, salon: SALON, profiles, styles, options, stylists, hours, timeOff, appointments, notifications,
     accounts: [
       { email: "customer@example.com", profile_id: customers[0].id, label: "Customer" },
       { email: "admin@example.com", profile_id: admin.id, label: "Salon admin" },

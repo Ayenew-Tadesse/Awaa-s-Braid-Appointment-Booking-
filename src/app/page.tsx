@@ -3,6 +3,7 @@
 // styles with prices, and where to find it. "Book" leads to sign-in.
 import Link from "next/link";
 import { Icon, Logo } from "@/components/icons";
+import { LanguageSwitch } from "@/components/language-switch";
 import { StyleList } from "@/components/style-list";
 import { Spinner } from "@/components/ui";
 import { useCatalogue } from "@/lib/data/catalogue";
@@ -17,10 +18,11 @@ export default function Home() {
     <div className="min-h-dvh">
       <header className="mx-auto flex h-14 max-w-3xl items-center gap-2 px-4">
         <span className="flex items-center gap-2 font-semibold"><Logo size={30} />{t("app.name")}</span>
-        <Link href="/login" className="btn btn-ghost btn-sm ml-auto">{t("nav.signIn")}</Link>
+        <div className="ml-auto flex items-center gap-1"><span className="hidden sm:block"><LanguageSwitch /></span>
+          <Link href="/login" className="btn btn-ghost btn-sm">{t("nav.signIn")}</Link></div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-10">
+      <main id="main" className="mx-auto max-w-3xl px-4 pb-10">
         <section className="relative mt-2 overflow-hidden rounded-3xl bg-brand px-5 py-8 text-on-brand sm:px-8 sm:py-12" data-hero>
           <svg className="pointer-events-none absolute -right-12 -top-6 h-56 w-40 opacity-15" viewBox="0 0 40 120" aria-hidden="true">
             {Array.from({ length: 12 }, (_, i) => <ellipse key={i} cx={20 + (i % 2 ? 5 : -5)} cy={8 + i * 9.5} rx="9" ry="7" fill="currentColor" />)}

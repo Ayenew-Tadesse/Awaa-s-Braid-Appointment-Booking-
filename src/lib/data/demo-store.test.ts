@@ -158,3 +158,37 @@ describe("the salon's tools in the demo (admins only)", () => {
     await c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "" });
   });
 });
+
+describe("notifications in the demo (the database's trigger)", () => {
+  beforeEach(() => { mem.clear(); resetDemo(); });
+  const latest = async (who: string) => (await new DemoStore(who, clock).load()).notifications[0];
+
+  it("a new request tells the salon, with who booked", async () => {
+    await new DemoStore(customer(), clock).book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "" });
+    expect(await latest(admin())).toMatchObject({ kind: "booked", read_at: null, data: { customer: "Hana Bekele", style: "Cornrows" } });
+  });
+
+  it("confirming, moving and declining tell the customer; their cancelling tells the salon", async () => {
+    const s = new DemoStore(admin(), clock);
+    const r = w0().appointments.find((a) => a.customer_id === customer() && a.status === "pending")!;
+    await s.setStatus(r.id, "confirmed");
+    expect((await latest(customer())).kind).toBe("confirmed");
+    await s.reschedule(r.id, at("2026-10-16", "13:00", tz).toISOString(), w0().stylists[0].id);
+    expect(await latest(customer())).toMatchObject({ kind: "moved", data: { starts_at: at("2026-10-16", "13:00", tz).toISOString(), stylist: "Selam" } });
+    await new DemoStore(customer(), clock).cancel(r.id);
+    expect((await latest(admin())).kind).toBe("cancelled_by_customer");
+    const other = w0().appointments.find((a) => a.status === "pending" && a.customer_id !== customer() && Date.parse(a.starts_at) > NOW.getTime())!;
+    await s.setStatus(other.id, "cancelled");
+    expect((await new DemoStore(other.customer_id, clock).load()).notifications[0].kind).toBe("declined");
+  });
+
+  it("each person sees and marks only their own", async () => {
+    const mine = (await new DemoStore(customer(), clock).load()).notifications;
+    expect(mine.every((n) => n.user_id === customer())).toBe(true);
+    const theirs = (await new DemoStore(admin(), clock).load()).notifications.map((n) => n.id);
+    await new DemoStore(customer(), clock).markRead(theirs);
+    expect((await new DemoStore(admin(), clock).load()).notifications.filter((n) => !n.read_at).length).toBeGreaterThan(0);
+    await new DemoStore(customer(), clock).markRead(mine.map((n) => n.id));
+    expect((await new DemoStore(customer(), clock).load()).notifications.every((n) => n.read_at)).toBe(true);
+  });
+});

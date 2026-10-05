@@ -1,14 +1,17 @@
 "use client";
-// Interface language: English now; Amharic is added as another dictionary.
+// Interface language: English | አማርኛ, remembered on this device.
 // t("nav.home"), t("home.hello", { name }) with English as the fallback for missing keys.
 import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { en } from "./en";
+import { am } from "./am";
+import { setDateLocale } from "../domain/time";
 
 export const LOCALES = [
   { code: "en", label: "English", dir: "ltr" },
+  { code: "am", label: "አማርኛ", dir: "ltr" },
 ] as const;
 export type Locale = (typeof LOCALES)[number]["code"];
-const DICTS: Record<Locale, unknown> = { en };
+const DICTS: Record<Locale, unknown> = { en, am };
 const KEY = "awaa_locale";
 
 function lookup(dict: unknown, key: string): string | undefined {
@@ -34,6 +37,8 @@ const I18n = createContext<Ctx>({ locale: "en", setLocale: () => {}, t: (k, v) =
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   // The chosen language lives in localStorage (English on the server and first paint).
   const locale = useSyncExternalStore(subscribe, readLocale, () => "en" as Locale);
+  // Dates and times follow the language (prices stay $220 either way).
+  setDateLocale(locale === "am" ? "am" : "en-US");
   useEffect(() => {
     const l = LOCALES.find((x) => x.code === locale)!;
     document.documentElement.lang = locale;
