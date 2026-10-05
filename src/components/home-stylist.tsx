@@ -73,7 +73,8 @@ function Job({ a, now, showDay }: { a: Appointment; now: Date; showDay?: boolean
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           {showDay && <p className="muted text-xs">{formatDay(a.starts_at, tz, { weekday: "long" })}</p>}
-          <p className="font-semibold tabular-nums">{formatTime(a.starts_at, tz)} – {formatTime(a.ends_at, tz)} <span className="muted text-sm font-normal">({formatDuration((Date.parse(a.ends_at) - Date.parse(a.starts_at)) / 60000)})</span></p>
+          <p className="font-semibold tabular-nums">{formatTime(a.starts_at, tz)} – {formatTime(a.ends_at, tz)}</p>
+          <p className="muted text-xs">{formatDuration((Date.parse(a.ends_at) - Date.parse(a.starts_at)) / 60000)}</p>
         </div>
         <StatusBadge status={a.status} label={t(`status.${a.status}`)} />
       </div>
