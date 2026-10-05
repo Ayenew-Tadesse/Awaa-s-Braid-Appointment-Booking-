@@ -108,6 +108,15 @@ await page.goto(`${BASE}/app/salon/reports`);
 await page.waitForSelector("[data-week-bars]");
 await shot("salon-reports", "Reports");
 
+// The guided tour, from a fresh browser (its first stop, on the customer's home).
+await page.context().clearCookies();
+await page.goto(`${BASE}/login`);
+await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+await page.goto(`${BASE}/login`);
+await page.click("[data-tour-start]");
+await page.waitForSelector("[data-tour-highlight]");
+await shot("tour", "The guided demo tour");
+
 await browser.close();
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify({
   app: "Awaa Braids", device: "phone", size: "390x844",
