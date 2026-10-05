@@ -40,6 +40,8 @@ export interface Store {
   saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string>;
   addTimeOff(t: Omit<TimeOff, "id">): Promise<void>;
   removeTimeOff(id: string): Promise<void>;
+  /** Take a stylist off the team (refused while they have upcoming appointments). */
+  removeStylist(id: string): Promise<void>;
   /** The ZIP codes we travel to and the travel time between visits. */
   saveVisitSettings(v: VisitSettings): Promise<void>;
 }

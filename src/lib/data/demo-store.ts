@@ -177,6 +177,7 @@ export class DemoStore implements Store {
     const problem = hoursProblem(hours);
     if (problem) throw new Error(problem);
     const id = stylist.id ?? uid();
+    if (stylist.active && w.stylists.find((x) => x.id === id)?.removed_at) throw new Error("This stylist was removed. Add them again as a new stylist.");
     const next = { ...stylist, id, name: stylist.name.trim(), bio: stylist.bio?.trim() || null };
     const i = w.stylists.findIndex((s) => s.id === id);
     if (i >= 0) w.stylists[i] = next; else w.stylists.push(next);
@@ -195,6 +196,20 @@ export class DemoStore implements Store {
   async removeTimeOff(id: string) {
     const w = this.asAdmin();
     w.timeOff = w.timeOff.filter((x) => x.id !== id);
+    saveWorld(w);
+  }
+
+  // Like remove_stylist(): only once nothing is upcoming; kept for history.
+  async removeStylist(id: string) {
+    const w = this.asAdmin();
+    const s = w.stylists.find((x) => x.id === id);
+    if (!s) throw new Error("Stylist not found.");
+    if (w.appointments.some((a) => a.stylist_id === id && isOpen(a) && Date.parse(a.ends_at) > this.clock().getTime()))
+      throw new Error("Move their upcoming appointments to another stylist first.");
+    w.hours = w.hours.filter((h) => h.stylist_id !== id);
+    w.timeOff = w.timeOff.filter((x) => x.stylist_id !== id || Date.parse(x.ends_at) <= this.clock().getTime());
+    s.active = false;
+    s.removed_at ??= this.clock().toISOString();
     saveWorld(w);
   }
 

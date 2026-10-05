@@ -1,13 +1,15 @@
 "use client";
-// The salon's team: each stylist's working week (one or two blocks a day, so a
-// break can sit between them) and time off. Customers are only offered times
-// inside these hours; the reason for time off stays with the salon.
+// The salon's team, managed by the admin: each stylist's working week (one or
+// two blocks a day, so a break can sit between them) and time off. Customers are
+// only offered times inside these hours; the reason for time off stays with the
+// salon. Tap a stylist for their schedule page (stylist-schedule.tsx).
 import Link from "next/link";
 import { useState } from "react";
 import { useApp } from "@/lib/data/app-context";
 import { errorText, type HoursDraft, type StylistDraft } from "@/lib/data/store";
 import { hoursProblem } from "@/lib/domain/salon";
 import { addDays, at, formatDay, formatTime, localDay } from "@/lib/domain/time";
+import { upcomingFor } from "@/lib/domain/team";
 import type { Stylist } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { Icon } from "./icons";
@@ -15,19 +17,19 @@ import { Sheet } from "./sheet";
 import { useToast } from "./toast";
 import { Card, Empty, PageHeader } from "./ui";
 
-const DAYS = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+export const DAYS = [1, 2, 3, 4, 5, 6, 0]; // Monday first
 
 export function ManageTeam() {
   const t = useT();
   const toast = useToast();
   const { data, store, reload } = useApp();
   const tz = data.salon.timezone;
-  const [editing, setEditing] = useState<Stylist | "new" | null>(null);
+  const [editing, setEditing] = useState<"new" | null>(null);
   const [adding, setAdding] = useState(false);
   const [now] = useState(() => Date.now());
   if (data.me.role !== "admin") return <Empty text={t("common.adminOnly")} />;
-  const summary = (id: string) => DAYS.filter((d) => data.hours.some((h) => h.stylist_id === id && h.weekday === d))
-    .map((d) => t(`salon.days.${d}`).slice(0, 3)).join(", ") || t("salon.off");
+  const summary = (id: string) => weekSummary(id, data.hours, t);
+  const team = data.stylists.filter((s) => !s.removed_at).sort((a, b) => a.sort - b.sort);
   const upcoming = data.timeOff.filter((x) => Date.parse(x.ends_at) > now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const remove = async (id: string) => {
     try { await store.removeTimeOff(id); await reload(); toast(t("common.saved")); } catch (e) { toast(errorText(e), "error"); }
@@ -38,17 +40,21 @@ export function ManageTeam() {
       <Link href="/app/salon" className="muted mb-2 inline-flex items-center gap-1 text-sm"><Icon name="chevron" size={16} className="rotate-180" />{t("salon.title")}</Link>
       <PageHeader title={t("salon.team")} action={<button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")} data-add-stylist><Icon name="plus" size={16} />{t("salon.addStylist")}</button>} />
       <ul className="space-y-2.5">
-        {[...data.stylists].sort((a, b) => a.sort - b.sort).map((s) => (
-          <li key={s.id}>
-            <button type="button" onClick={() => setEditing(s)} className="card flex w-full items-center gap-3 p-3.5 text-left hover:border-brand" data-manage-stylist={s.name}>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2"><span className="font-semibold">{s.name}</span>{!s.active && <span className="badge badge-cancelled">{t("salon.hidden")}</span>}</span>
-                <span className="muted block text-sm">{summary(s.id)}</span>
-              </span>
-              <Icon name="chevron" className="text-muted" />
-            </button>
-          </li>
-        ))}
+        {team.map((s) => {
+          const jobs = upcomingFor(s.id, data.appointments, new Date(now)).length;
+          return (
+            <li key={s.id}>
+              <Link href={`/app/salon/team/${s.id}`} className="card flex w-full items-center gap-3 p-3.5 text-left hover:border-brand" data-manage-stylist={s.name}>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2"><span className="font-semibold">{s.name}</span>{!s.active && <span className="badge badge-cancelled">{t("salon.hidden")}</span>}</span>
+                  <span className="muted block text-sm">{summary(s.id)}</span>
+                  <span className="muted block text-xs">{t("salon.jobsCount", { n: jobs })}</span>
+                </span>
+                <Icon name="chevron" className="text-muted" />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
 
       <Card className="mt-5" title={t("salon.timeOff")} action={<button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(true)} data-add-time-off><Icon name="plus" size={16} />{t("salon.addTimeOff")}</button>}>
@@ -66,13 +72,18 @@ export function ManageTeam() {
           </ul>
         ) : <p className="muted text-sm">{t("salon.noTimeOff")}</p>}
       </Card>
-      {editing && <StylistEditor stylist={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <StylistEditor stylist={null} onClose={() => setEditing(null)} />}
       {adding && <TimeOffEditor onClose={() => setAdding(false)} />}
     </>
   );
 }
 
-function StylistEditor({ stylist, onClose }: { stylist: Stylist | null; onClose: () => void }) {
+/** "Mon, Tue, Wed…": the days a stylist works. */
+export function weekSummary(id: string, hours: { stylist_id: string; weekday: number }[], t: (k: string) => string) {
+  return DAYS.filter((d) => hours.some((h) => h.stylist_id === id && h.weekday === d)).map((d) => t(`salon.days.${d}`).slice(0, 3)).join(", ") || t("salon.off");
+}
+
+export function StylistEditor({ stylist, onClose }: { stylist: Stylist | null; onClose: () => void }) {
   const t = useT();
   const toast = useToast();
   const { data, store, reload } = useApp();
@@ -102,7 +113,14 @@ function StylistEditor({ stylist, onClose }: { stylist: Stylist | null; onClose:
         <div><label className="label" htmlFor="sy-bio">{t("salon.bio")}</label><input id="sy-bio" className="input" maxLength={300} value={s.bio ?? ""} onChange={(e) => setS({ ...s, bio: e.target.value })} /></div>
         <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-[var(--brand)]" checked={s.active} onChange={(e) => setS({ ...s, active: e.target.checked })} />{t("salon.working")}</label>
         <fieldset>
-          <legend className="label">{t("salon.week")}</legend>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <legend className="label mb-0">{t("salon.week")}</legend>
+            {of(1).length > 0 && (
+              <button type="button" className="text-xs text-brand underline" data-copy-monday
+                onClick={() => setHours((l) => [...l.filter((h) => h.weekday === 1 || h.weekday === 0 || h.weekday === 6),
+                  ...[2, 3, 4, 5].flatMap((d) => l.filter((h) => h.weekday === 1).map((h) => ({ ...h, weekday: d })))])}>{t("salon.copyMonday")}</button>
+            )}
+          </div>
           <ul className="divide-y divide-line rounded-2xl border border-line">
             {DAYS.map((d) => {
               const blocks = of(d);
@@ -140,13 +158,13 @@ function StylistEditor({ stylist, onClose }: { stylist: Stylist | null; onClose:
   );
 }
 
-function TimeOffEditor({ onClose }: { onClose: () => void }) {
+export function TimeOffEditor({ onClose, stylistId }: { onClose: () => void; stylistId?: string }) {
   const t = useT();
   const toast = useToast();
   const { data, store, reload } = useApp();
   const tz = data.salon.timezone;
   const [today] = useState(() => localDay(new Date(), tz));
-  const [f, setF] = useState({ stylist: data.stylists.find((s) => s.active)?.id ?? "", day: addDays(today, 1), allDay: true, from: "09:00", to: "13:00", reason: "" });
+  const [f, setF] = useState({ stylist: stylistId ?? data.stylists.find((s) => s.active)?.id ?? "", day: addDays(today, 1), allDay: true, from: "09:00", to: "13:00", reason: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const save = async () => {

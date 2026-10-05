@@ -112,10 +112,14 @@ test("change a stylist's week and add time off; booking follows", async ({ page 
   await signIn(page, "admin");
   await page.goto("/app/salon/team");
   await page.click('[data-manage-stylist="Hiwot"]');
+  await expect(page.getByRole("heading", { level: 1, name: "Hiwot" })).toBeVisible();
   // Hiwot stops working Mondays.
+  await page.click("[data-edit-stylist]");
   await page.locator("[data-works='1']").uncheck();
   await noSideScroll(page);
   await page.click("[data-save-stylist]");
+  await expect(page.locator("[data-week]")).toContainText(/Monday\s*Off/);
+  await page.goto("/app/salon/team");
   await expect(page.locator('[data-manage-stylist="Hiwot"]')).not.toContainText("Mon");
   // Time off for Selam.
   await page.click("[data-add-time-off]");
@@ -158,6 +162,65 @@ test("home visits: the salon changes the area and travel time; customers follow 
   await page.fill("#zip", "20910");
   await page.click("[data-next]");
   await expect(page.locator("[data-place-problem=area]")).toContainText("only ZIP codes starting 200.");
+});
+
+test("a stylist's schedule: the week, upcoming jobs with addresses, and send the day", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/app/salon/team");
+  await expect(page.locator('[data-manage-stylist="Selam"]')).toContainText(/Upcoming jobs: [1-9]/);
+  await page.click('[data-manage-stylist="Selam"]');
+  await expect(page.locator("[data-week]")).toContainText("Monday");
+  const job = page.locator("[data-job]").first();
+  await expect(job).toContainText("Demo");
+  await expect(job.locator("a[href*='google.com/maps']")).toBeVisible();
+  await noSideScroll(page);
+  // "Send to stylist": the share menu, or a copy when there isn't one.
+  await page.evaluate(() => { (window as unknown as { shared: string }).shared = ""; navigator.share = async (d?: ShareData) => { (window as unknown as { shared: string }).shared = d?.text ?? ""; }; });
+  await page.locator("[data-send-day]").first().click();
+  const text = await page.evaluate(() => (window as unknown as { shared: string }).shared);
+  expect(text).toContain("Selam");
+  expect(text).toMatch(/\(\d{3}\) 555-01\d\d/);
+  expect(text).toContain("google.com/maps");
+  // Copy Monday's hours to Tuesday-Friday.
+  await page.click("[data-edit-stylist]");
+  await page.locator("[data-week-row='1'] input[type=time]").first().fill("10:00");
+  await page.click("[data-copy-monday]");
+  await page.click("[data-save-stylist]");
+  await expect(page.locator("[data-week]")).toContainText(/Friday\s*10:00\sAM – 7:00\sPM/);
+});
+
+test("remove a stylist: move their jobs first, then they're gone from booking", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/app/salon/team");
+  await page.click('[data-manage-stylist="Meron"]');
+  await expect(page.locator("[data-remove-stylist]")).toHaveCount(0);
+  await page.selectOption("#move-to", { label: "Selam" });
+  await page.click("[data-move-all-go]");
+  await expect(page.getByText(/Moved \d+ to Selam/)).toBeVisible();
+  // Any that Selam couldn't take go to Hiwot.
+  if (await page.locator("[data-move-all]").count()) {
+    await page.selectOption("#move-to", { label: "Hiwot" });
+    await page.click("[data-move-all-go]");
+  }
+  // Whatever is still left, the salon cancels from the job itself.
+  while (await page.locator("[data-job]").count()) {
+    await page.locator("[data-job] button").first().click();
+    await page.locator("[data-sheet] [data-action=decline], [data-sheet] [data-action=cancel]").first().click();
+    await page.locator("[data-confirm-cancel]").click();
+    await page.keyboard.press("Escape");
+  }
+  await page.click("[data-remove-stylist]");
+  await page.locator("[data-confirm-cancel]").click();
+  await expect(page.getByText("Meron was removed from the team.")).toBeVisible();
+  await page.goto("/app/salon/team");
+  await expect(page.locator('[data-manage-stylist="Meron"]')).toHaveCount(0);
+  // Customers can't choose her any more.
+  await switchTo(page, "customer");
+  await page.goto("/app/book");
+  await page.click('[data-pick-style="Cornrows"]');
+  await page.click("[data-next]");
+  await expect(page.locator('[data-stylist="Meron"]')).toHaveCount(0);
+  await expect(page.locator('[data-stylist="Selam"]')).toBeVisible();
 });
 
 test("reports: the week's bars, popular styles and rates", async ({ page }) => {

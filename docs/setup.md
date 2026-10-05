@@ -15,6 +15,7 @@ secret key in the code, and nobody else needs your passwords.
    4. `20261007000001_salon_tools.sql`
    5. `20261008000001_notifications.sql`
    6. `20261009000001_home_visits.sql`
+   7. `20261010000001_team.sql`
 
    Each should finish with "Success. No rows returned".
 3. Open `supabase/starter-salon.sql`. Change the line marked **EDIT ME** to your
@@ -64,8 +65,9 @@ Everyone else who signs up is a customer. Only an admin can make someone else an
 
 ## 5. Make it yours (in the app)
 
-- **Salon → Stylists and hours:** rename "Stylist 1", set the real working week and
-  breaks, and add the other stylists.
+- **Salon → Stylists and hours:** add your stylists, then tap "Stylist 1" and remove it
+  (or tap Edit to rename it). Each stylist's page has their working week (with breaks),
+  time off and upcoming jobs.
 - **Salon → Styles and prices:** set your real prices and times, change or hide styles.
 - **Salon → Home visits:** the ZIP codes you travel to (first three digits) and the
   travel time between visits.

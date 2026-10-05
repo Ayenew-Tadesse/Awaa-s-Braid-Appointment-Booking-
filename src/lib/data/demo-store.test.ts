@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DemoStore, loadWorld, resetDemo } from "./demo-store";
 import { at, formatTime } from "../domain/time";
+import { freeAt, jobLines, upcomingFor } from "../domain/team";
 
 // localStorage for the tests (the demo keeps the salon there).
 const mem = new Map<string, string>();
@@ -122,6 +123,41 @@ describe("the salon's tools in the demo (admins only)", () => {
     await expect(c.setStatus(req().id, "confirmed")).rejects.toThrow("permission");
     await expect(c.saveStyle({ ...style("Cornrows"), price: 1 }, [])).rejects.toThrow("permission");
     await expect(c.addTimeOff({ stylist_id: w0().stylists[0].id, starts_at: NOW.toISOString(), ends_at: new Date(NOW.getTime() + 3600000).toISOString(), reason: null })).rejects.toThrow("permission");
+  });
+
+  it("remove a stylist only once their upcoming jobs have moved; history keeps them", async () => {
+    const s = new DemoStore(admin(), clock);
+    const hiwot = w0().stylists[2];
+    await expect(new DemoStore(customer(), clock).removeStylist(hiwot.id)).rejects.toThrow("permission");
+    await expect(s.removeStylist(hiwot.id)).rejects.toThrow("Move their upcoming appointments");
+    // Move each of Hiwot's jobs to whoever is free at the same time (as "Move all" does).
+    for (const a of upcomingFor(hiwot.id, w0().appointments, NOW)) {
+      const to = w0().stylists.find((x) => x.id !== hiwot.id && freeAt(a, x.id, w0(), NOW));
+      if (to) await s.reschedule(a.id, a.starts_at, to.id); else await s.setStatus(a.id, "cancelled");
+    }
+    await s.removeStylist(hiwot.id);
+    const w = w0();
+    expect(w.stylists.find((x) => x.id === hiwot.id)!.removed_at).toBeTruthy();
+    expect(w.hours.some((h) => h.stylist_id === hiwot.id)).toBe(false);
+    expect(w.appointments.some((a) => a.stylist_id === hiwot.id)).toBe(true); // past ones keep her
+    await expect(s.saveStylist({ ...w.stylists.find((x) => x.id === hiwot.id)!, active: true }, [])).rejects.toThrow("was removed");
+    // Customers can't book her; one she braided before still sees her name (Ruth never had her).
+    const store = new DemoStore(customer(), clock);
+    expect((await store.load()).stylists.some((x) => x.id === hiwot.id)).toBe(true); // Hana's past cornrows
+    expect((await new DemoStore(w.profiles[3].id, clock).load()).stylists.some((x) => x.id === hiwot.id)).toBe(false);
+    await expect(store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: hiwot.id, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "", address: HOME }))
+      .rejects.toThrow("no longer free");
+  });
+
+  it("a day's jobs read as a message for the stylist", () => {
+    const w = w0();
+    const a = upcomingFor(w.stylists[0].id, w.appointments, NOW)[0];
+    const [line] = jobLines([a], w.profiles, (iso) => formatTime(iso, tz));
+    const c = w.profiles.find((p) => p.id === a.customer_id)!;
+    expect(line).toContain(a.style_name);
+    expect(line).toContain(`${c.full_name} · ${c.phone}`);
+    expect(line).toContain(a.visit_address!);
+    expect(line).toContain("google.com/maps");
   });
 
   it("confirm, decline (says the salon cancelled), and done or missed only once started", async () => {

@@ -120,6 +120,11 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(error.message);
   }
 
+  async removeStylist(id: string) {
+    const { error } = await supabase().rpc("remove_stylist", { p_stylist: id });
+    if (error) throw new Error(error.message);
+  }
+
   async saveVisitSettings(v: VisitSettings) {
     const sb = supabase();
     const { data, error } = await sb.from("salon").select("id").limit(1).single();

@@ -58,6 +58,10 @@ for (const scheme of ["light", "dark"] as const) {
         await page.waitForSelector("main h1");
         await scan(page, path);
       }
+      await page.goto("/app/salon/team");
+      await page.locator("[data-manage-stylist]").first().click();
+      await page.waitForSelector("[data-jobs]");
+      await scan(page, "stylist schedule");
       await page.goto("/app/salon/styles");
       await page.locator("[data-manage-style]").first().click();
       await page.waitForSelector("[data-style-editor]");

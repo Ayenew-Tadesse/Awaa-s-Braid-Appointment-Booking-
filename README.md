@@ -40,6 +40,11 @@ kept in your browser.
   - An hour (changeable) is kept free after each visit so the stylist can get to the next home. The database enforces it too.
   - The salon sees the address with an "Open in Maps" link.
 
+- **The team, run by the admin:** stylists don't sign in; only the admin adds, edits, pauses or removes them.
+  - Each stylist has a schedule page: their working week (with "Copy Monday to Tuesday–Friday"), time off, and upcoming jobs with addresses and map links.
+  - "Send to stylist" shares a day's jobs (times, customers' numbers, addresses and map links) through the phone's share menu.
+  - Removing a stylist: first move their upcoming appointments ("Move all" to a stylist who is free at the same times; customers are told). They're then off the team and never offered for booking, while past appointments and reports keep their name.
+
 ## Security
 
 - Every table has Row Level Security. A customer only ever sees their own profile and appointments; nobody sees another customer's name, phone or bookings.
