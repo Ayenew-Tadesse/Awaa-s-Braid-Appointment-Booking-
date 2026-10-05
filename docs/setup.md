@@ -16,6 +16,7 @@ secret key in the code, and nobody else needs your passwords.
    5. `20261008000001_notifications.sql`
    6. `20261009000001_home_visits.sql`
    7. `20261010000001_team.sql`
+   8. `20261011000001_stylist_logins.sql`
 
    Each should finish with "Success. No rows returned".
 3. Open `supabase/starter-salon.sql`. Change the line marked **EDIT ME** to your
@@ -71,14 +72,18 @@ Everyone else who signs up is a customer. Only an admin can make someone else an
 - **Salon → Styles and prices:** set your real prices and times, change or hide styles.
 - **Salon → Home visits:** the ZIP codes you travel to (first three digits) and the
   travel time between visits.
+- **Give each stylist a login:** the stylist signs up on the website with their own
+  email (they start as a customer). Then open their page under **Salon → Stylists and
+  hours**, type that email under **Login** and tap **Link**. They now sign in to see only
+  their own jobs (customer, address, map link, note, what to collect) and their week,
+  and mark jobs done or missed. **Unlink login** turns it back into a customer account.
 - Book a test appointment from a second account (or a friend's phone), confirm it as the
   admin, then cancel it.
 
 ## Good to know
 
 - Stylists go to the customer's home. Customers give their address when they book; only
-  they and the admin see it. Stylists don't have their own logins, so the admin passes
-  each stylist the address (the appointment has an "Open in Maps" button).
+  they, the admin and the stylist doing that job see it.
 - Customers pay their stylist on the day; the app takes no payments.
 - Notifications are in the app only (the bell). No texts or emails are sent.
 - Backups depend on your Supabase plan: check **Database → Backups** to see what yours keeps.

@@ -117,6 +117,16 @@ await page.goto(`${BASE}/app/salon/reports`);
 await page.waitForSelector("[data-week-bars]");
 await shot("salon-reports", "Reports");
 
+// A stylist's own login: her jobs with addresses, and her week.
+await page.goto(`${BASE}/app/account`);
+await page.click("[data-sign-out]");
+await page.click("[data-demo=stylist]");
+await page.waitForSelector("[data-jobs]");
+await shot("stylist-jobs", "A stylist's own jobs, with addresses and map links");
+await page.goto(`${BASE}/app/week`);
+await page.waitForSelector("[data-my-week]");
+await shot("stylist-week", "A stylist's week");
+
 // The guided tour, from a fresh browser (its first stop, on the customer's home).
 await page.context().clearCookies();
 await page.goto(`${BASE}/login`);

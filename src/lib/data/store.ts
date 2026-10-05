@@ -40,6 +40,11 @@ export interface Store {
   saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string>;
   addTimeOff(t: Omit<TimeOff, "id">): Promise<void>;
   removeTimeOff(id: string): Promise<void>;
+  /** Link a stylist to the login that uses this email (it becomes a stylist account); unlink makes it a customer again. */
+  linkLogin(stylistId: string, email: string): Promise<void>;
+  unlinkLogin(stylistId: string): Promise<void>;
+  /** A stylist marks their own confirmed, started job done (completed) or missed (no_show). */
+  markJob(id: string, status: "completed" | "no_show"): Promise<void>;
   /** Take a stylist off the team (refused while they have upcoming appointments). */
   removeStylist(id: string): Promise<void>;
   /** The ZIP codes we travel to and the travel time between visits. */

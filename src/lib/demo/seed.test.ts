@@ -60,8 +60,9 @@ describe("the demo salon", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("has one demo customer and one demo admin account", () => {
+  it("has a demo customer, admin and stylist account; the stylist's login is linked to Selam", () => {
     const w = buildWorld();
-    expect(w.accounts.map((a) => w.profiles.find((p) => p.id === a.profile_id)?.role)).toEqual(["customer", "admin"]);
+    expect(w.accounts.map((a) => w.profiles.find((p) => p.id === a.profile_id)?.role)).toEqual(["customer", "admin", "stylist"]);
+    expect(w.stylists.find((s) => s.name === "Selam")!.profile_id).toBe(w.accounts[2].profile_id);
   });
 });

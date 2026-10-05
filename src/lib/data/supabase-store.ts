@@ -120,6 +120,21 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(error.message);
   }
 
+  async linkLogin(stylistId: string, email: string) {
+    const { error } = await supabase().rpc("link_stylist_login", { p_stylist: stylistId, p_email: email });
+    if (error) throw new Error(error.message);
+  }
+
+  async unlinkLogin(stylistId: string) {
+    const { error } = await supabase().rpc("unlink_stylist_login", { p_stylist: stylistId });
+    if (error) throw new Error(error.message);
+  }
+
+  async markJob(id: string, status: "completed" | "no_show") {
+    const { error } = await supabase().rpc("mark_job", { p_id: id, p_status: status });
+    if (error) throw new Error(error.message);
+  }
+
   async removeStylist(id: string) {
     const { error } = await supabase().rpc("remove_stylist", { p_stylist: id });
     if (error) throw new Error(error.message);

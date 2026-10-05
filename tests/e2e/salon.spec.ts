@@ -5,7 +5,7 @@ const signIn = async (page: Page, who: "admin" | "customer") => {
   await page.click(`[data-demo=${who}]`);
   await expect(page.getByRole("heading", { name: who === "admin" ? "Today" : "Hello, Hana", level: 1 })).toBeVisible();
 };
-const switchTo = async (page: Page, who: "admin" | "customer") => {
+const switchTo = async (page: Page, who: "admin" | "customer" | "stylist") => {
   await page.goto("/app/account");
   await page.click("[data-sign-out]");
   await page.click(`[data-demo=${who}]`);
@@ -221,6 +221,50 @@ test("remove a stylist: move their jobs first, then they're gone from booking", 
   await page.click("[data-next]");
   await expect(page.locator('[data-stylist="Meron"]')).toHaveCount(0);
   await expect(page.locator('[data-stylist="Selam"]')).toBeVisible();
+});
+
+test("stylist logins: the salon links one; the stylist sees only their own jobs", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/app/salon/team");
+  await page.click('[data-manage-stylist="Selam"]');
+  await expect(page.locator("[data-login]")).toContainText("Signs in as Selam Tesfaye");
+  await page.goto("/app/salon/team");
+  await page.click('[data-manage-stylist="Hiwot"]');
+  await page.fill("#login-email", "nobody@example.com");
+  await page.click("[data-link]");
+  await expect(page.getByText("Ask the stylist to sign up first.")).toBeVisible();
+  await page.fill("#login-email", "hiwot@example.com");
+  await page.click("[data-link]");
+  await expect(page.locator("[data-login]")).toContainText("Signs in as Hiwot Desta");
+  await noSideScroll(page);
+  await page.click("[data-unlink]");
+  await expect(page.locator("[data-link-form]")).toBeVisible();
+
+  // Selam signs in: her jobs, with addresses and map links; three tabs; no salon pages.
+  await switchTo(page, "stylist");
+  await expect(page.locator("[data-jobs]")).toBeVisible();
+  await expect(page.locator("a[href='/app/salon'], a[href='/app/book']")).toHaveCount(0);
+  const job = page.locator("[data-job]").first();
+  await expect(job.locator("[data-job-place]")).toContainText("Demo");
+  await expect(job.locator("[data-map]")).toHaveAttribute("href", /google\.com\/maps/);
+  await expect(job).toContainText("Collect $");
+  await noSideScroll(page);
+  // Only her own customers.
+  const content = await page.content();
+  for (const name of ["Liya Tesfaye", "Saba Girma"]) expect(content).not.toContain(name); // Meron's and Hiwot's customers
+  if (await page.locator("[data-mark=completed]").count()) {
+    await page.locator("[data-mark=completed]").first().click();
+    await expect(page.getByText("Marked done")).toBeVisible();
+  }
+  await page.goto("/app/week");
+  await expect(page.locator("[data-my-week]")).toContainText("Sunday");
+  await expect(page.locator("[data-my-week]")).toContainText("9:00 AM – 7:00 PM");
+  for (const path of ["/app/salon", "/app/calendar", "/app/salon/team"]) {
+    await page.goto(path);
+    await expect(page.getByText("This page is for the salon.")).toBeVisible();
+  }
+  await page.goto("/app/book");
+  await expect(page.getByText("Your jobs are under Jobs.")).toBeVisible();
 });
 
 test("reports: the week's bars, popular styles and rates", async ({ page }) => {

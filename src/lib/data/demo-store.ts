@@ -11,7 +11,7 @@ import { buildWorld, noteFor, type World } from "../demo/seed";
 import { visibleTo } from "./visibility";
 import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft, VisitSettings } from "./store";
 
-const KEY = "awaa_demo_world_v2"; // v2: home visits
+const KEY = "awaa_demo_world_v3"; // v3: stylist logins
 const ACCOUNT = "awaa_demo_account";
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -46,6 +46,11 @@ export class DemoStore implements Store {
   private notify(w: World, kind: NotificationKind, a: Appointment) {
     const to = kind === "booked" || kind === "cancelled_by_customer" ? w.profiles.filter((p) => p.role === "admin").map((p) => p.id) : [a.customer_id];
     for (const user of to) w.notifications.push(noteFor(w, user, kind, a, uid(), this.clock().toISOString()));
+  }
+  /** To the stylist's own login, if they have one. */
+  private notifyStylist(w: World, stylistId: string, kind: NotificationKind, a: Appointment) {
+    const login = w.stylists.find((s) => s.id === stylistId)?.profile_id;
+    if (login && w.profiles.find((p) => p.id === login)?.role === "stylist") w.notifications.push(noteFor(w, login, kind, a, uid(), this.clock().toISOString()));
   }
 
   async markRead(ids: string[]) {
@@ -112,9 +117,11 @@ export class DemoStore implements Store {
     const rule = cancelRule(a, w.salon, now);
     if (rule === "no") throw new Error(isOpen(a) ? "This appointment has already started." : "This appointment can no longer be cancelled.");
     if (rule === "call") throw new Error(`Confirmed appointments can be cancelled up to ${w.salon.cancel_hours} hours before. Please call the salon.`);
+    const was = a.status;
     a.status = "cancelled";
     a.cancelled_by = "customer";
     this.notify(w, "cancelled_by_customer", a);
+    if (was === "confirmed") this.notifyStylist(w, a.stylist_id, "job_removed", a);
     saveWorld(w);
   }
 
@@ -134,8 +141,9 @@ export class DemoStore implements Store {
     const was = a.status;
     a.status = status;
     if (status === "cancelled") a.cancelled_by = "salon";
-    if (status === "confirmed" && was === "pending") this.notify(w, "confirmed", a);
+    if (status === "confirmed" && was === "pending") { this.notify(w, "confirmed", a); this.notifyStylist(w, a.stylist_id, "job_assigned", a); }
     if (status === "cancelled") this.notify(w, was === "pending" ? "declined" : "cancelled_by_salon", a);
+    if (status === "cancelled" && was === "confirmed") this.notifyStylist(w, a.stylist_id, "job_removed", a);
     saveWorld(w);
   }
 
@@ -151,7 +159,12 @@ export class DemoStore implements Store {
       .find((s) => s.startsAt === new Date(startsAt).toISOString());
     if (!slot) throw new Error("That time is no longer free. Please pick another.");
     const changed = a.starts_at !== slot.startsAt || a.stylist_id !== stylistId;
+    const before = { ...a };
     a.starts_at = slot.startsAt; a.ends_at = slot.endsAt; a.stylist_id = stylistId;
+    if (changed && a.status === "confirmed") {
+      if (before.stylist_id !== stylistId) { this.notifyStylist(w, before.stylist_id, "job_removed", before); this.notifyStylist(w, stylistId, "job_assigned", a); }
+      else this.notifyStylist(w, stylistId, "job_moved", a);
+    }
     a.busy_until = new Date(Date.parse(slot.endsAt) + w.salon.travel_minutes * 60000).toISOString();
     if (changed) this.notify(w, "moved", a);
     saveWorld(w);
@@ -206,10 +219,52 @@ export class DemoStore implements Store {
     if (!s) throw new Error("Stylist not found.");
     if (w.appointments.some((a) => a.stylist_id === id && isOpen(a) && Date.parse(a.ends_at) > this.clock().getTime()))
       throw new Error("Move their upcoming appointments to another stylist first.");
+    this.unlink(w, id);
     w.hours = w.hours.filter((h) => h.stylist_id !== id);
     w.timeOff = w.timeOff.filter((x) => x.stylist_id !== id || Date.parse(x.ends_at) <= this.clock().getTime());
     s.active = false;
     s.removed_at ??= this.clock().toISOString();
+    saveWorld(w);
+  }
+
+  // Like link_stylist_login() / unlink_stylist_login(): admins only.
+  async linkLogin(stylistId: string, email: string) {
+    const w = this.asAdmin();
+    const s = w.stylists.find((x) => x.id === stylistId && !x.removed_at);
+    if (!s) throw new Error("Stylist not found.");
+    const who = Object.entries(w.emails ?? {}).find(([, e]) => e.toLowerCase() === email.trim().toLowerCase())?.[0];
+    const p = w.profiles.find((x) => x.id === who);
+    if (!p) throw new Error("No account uses that email yet. Ask the stylist to sign up first.");
+    if (p.role === "admin") throw new Error("That is an admin account.");
+    if (w.stylists.some((x) => x.profile_id === p.id && x.id !== stylistId)) throw new Error("That account is already linked to another stylist.");
+    if (s.profile_id && s.profile_id !== p.id) this.unlink(w, stylistId);
+    s.profile_id = p.id;
+    p.role = "stylist";
+    saveWorld(w);
+  }
+
+  async unlinkLogin(stylistId: string) {
+    const w = this.asAdmin();
+    this.unlink(w, stylistId);
+    saveWorld(w);
+  }
+
+  private unlink(w: World, stylistId: string) {
+    const s = w.stylists.find((x) => x.id === stylistId);
+    const p = w.profiles.find((x) => x.id === s?.profile_id);
+    if (p?.role === "stylist") p.role = "customer";
+    if (s) s.profile_id = null;
+  }
+
+  // Like mark_job(): a stylist's own confirmed job, once it has started.
+  async markJob(id: string, status: "completed" | "no_show") {
+    const w = loadWorld(this.clock());
+    const mine = w.stylists.find((s) => s.profile_id === this.profileId && !s.removed_at && w.profiles.find((p) => p.id === this.profileId)?.role === "stylist");
+    const a = w.appointments.find((x) => x.id === id && mine && x.stylist_id === mine.id);
+    if (!a) throw new Error("Job not found.");
+    if (a.status !== "confirmed") throw new Error("Only a confirmed job can be marked.");
+    if (Date.parse(a.starts_at) > this.clock().getTime()) throw new Error("An appointment can be marked done or missed once it has started.");
+    a.status = status;
     saveWorld(w);
   }
 

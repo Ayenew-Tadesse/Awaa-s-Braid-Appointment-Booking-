@@ -93,6 +93,7 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
   };
 
   if (data.me.role === "admin") return <Empty icon="calendar" text={t("book.adminOnly")} />;
+  if (data.me.role === "stylist") return <Empty icon="calendar" text={t("book.stylistOnly")} />;
   if (upcoming >= MAX_UPCOMING && step !== "sent") return <Empty icon="calendar" text={t("book.limit", { n: MAX_UPCOMING })}><Link href="/app" className="btn btn-ghost btn-sm mt-2">{t("book.seeAppointments")}</Link></Empty>;
 
   if (step === "sent" && style && slot) {

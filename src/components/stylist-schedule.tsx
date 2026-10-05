@@ -9,7 +9,7 @@ import { useApp } from "@/lib/data/app-context";
 import { errorText } from "@/lib/data/store";
 import { mapsUrl } from "@/lib/domain/booking";
 import { freeAt, jobLines, upcomingFor } from "@/lib/domain/team";
-import { formatDay, formatTime, getDateLocale, localDay } from "@/lib/domain/time";
+import { clockLabel, formatDay, formatTime, localDay } from "@/lib/domain/time";
 import type { Appointment } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { AppointmentSheet } from "./appointment-sheet";
@@ -32,6 +32,7 @@ export function StylistSchedule({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
   const [removed, setRemoved] = useState(false);
+  const [email, setEmail] = useState("");
 
   const s = data.stylists.find((x) => x.id === id);
   const jobs = useMemo(() => upcomingFor(id, data.appointments, now), [id, data.appointments, now]);
@@ -43,8 +44,6 @@ export function StylistSchedule({ id }: { id: string }) {
   const others = data.stylists.filter((x) => x.active && !x.removed_at && x.id !== id);
   const timeOff = data.timeOff.filter((x) => x.stylist_id === id && Date.parse(x.ends_at) > now.getTime()).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const time = (iso: string) => formatTime(iso, tz);
-  // "09:00" from the working week, written like every other time in the app ("9:00 AM").
-  const clock = (hhmm: string) => new Intl.DateTimeFormat(getDateLocale(), { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(new Date(`2000-01-01T${hhmm}:00Z`));
 
   const send = async (day: string) => {
     const list = jobs.filter((a) => localDay(new Date(a.starts_at), tz) === day);
@@ -72,6 +71,21 @@ export function StylistSchedule({ id }: { id: string }) {
     toast(left ? t("salon.movedSome", { moved, left, name: to.name }) : t("salon.movedAll", { moved, name: to.name }), left ? "error" : undefined);
   };
 
+  const login = s.profile_id ? data.people.find((p) => p.id === s.profile_id) ?? { full_name: "", phone: null } : null;
+  const link = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try { await store.linkLogin(id, email); setEmail(""); await reload(); toast(t("salon.linked")); }
+    catch (err) { toast(errorText(err), "error"); }
+    finally { setBusy(false); }
+  };
+  const unlink = async () => {
+    setBusy(true);
+    try { await store.unlinkLogin(id); await reload(); toast(t("salon.unlinked")); }
+    catch (err) { toast(errorText(err), "error"); }
+    finally { setBusy(false); }
+  };
+
   const remove = async () => {
     setBusy(true);
     try { await store.removeStylist(id); setRemoved(true); await reload(); toast(t("salon.removedToast", { name: s.name })); }
@@ -87,6 +101,24 @@ export function StylistSchedule({ id }: { id: string }) {
       {!s.active && <p className="mb-4 rounded-xl bg-surface-2 px-3 py-2 text-sm" data-paused>{t("salon.paused")}</p>}
 
       <div className="space-y-4">
+        <Card title={t("salon.login")}>
+          {login ? (
+            <div className="flex flex-wrap items-center gap-3" data-login>
+              <p className="min-w-0 flex-1 text-sm">{t("salon.loginLinked", { name: login.full_name || "—" })}{login.phone ? <span className="muted block">{login.phone}</span> : null}</p>
+              <button type="button" className="btn btn-ghost btn-sm text-bad" disabled={busy} onClick={unlink} data-unlink>{t("salon.unlink")}</button>
+            </div>
+          ) : (
+            <form className="space-y-2" onSubmit={link} data-link-form>
+              <p className="muted text-sm">{t("salon.loginHint")}</p>
+              <label className="label" htmlFor="login-email">{t("salon.loginEmail")}</label>
+              <div className="flex gap-2">
+                <input id="login-email" type="email" autoComplete="off" className="input min-w-0 flex-1" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <button type="submit" className="btn btn-primary" disabled={busy || !email.trim()} data-link>{t("salon.link")}</button>
+              </div>
+            </form>
+          )}
+        </Card>
+
         <Card title={t("salon.week")}>
           <ul className="space-y-1 text-sm" data-week>
             {DAYS.map((d) => {
@@ -94,7 +126,7 @@ export function StylistSchedule({ id }: { id: string }) {
               return (
                 <li key={d} className="flex justify-between gap-3">
                   <span>{t(`salon.days.${d}`)}</span>
-                  <span className={blocks.length ? "tabular-nums" : "muted"}>{blocks.length ? blocks.map((b) => `${clock(b.starts)} – ${clock(b.ends)}`).join(", ") : t("salon.off")}</span>
+                  <span className={blocks.length ? "tabular-nums" : "muted"}>{blocks.length ? blocks.map((b) => `${clockLabel(b.starts)} – ${clockLabel(b.ends)}`).join(", ") : t("salon.off")}</span>
                 </li>
               );
             })}

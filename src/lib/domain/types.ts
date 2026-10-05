@@ -1,6 +1,6 @@
 // The salon's data, as stored (supabase/migrations) and as the screens use it.
 
-export type Role = "customer" | "admin";
+export type Role = "customer" | "admin" | "stylist";
 export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
 export type StyleCategory = "braids" | "cornrows" | "twists" | "locs" | "kids" | "other";
 export type OptionKind = "size" | "length" | "extra";
@@ -19,7 +19,8 @@ export type Style = {
 };
 export type StyleOption = { id: string; style_id: string; kind: OptionKind; label: string; extra_minutes: number; extra_price: number; sort: number };
 /** removed_at: taken off the team by the salon (kept so past appointments still show who did them). */
-export type Stylist = { id: string; name: string; bio: string | null; active: boolean; sort: number; removed_at?: string | null };
+/** profile_id: the stylist's own login, linked by the salon (null = no login). */
+export type Stylist = { id: string; name: string; bio: string | null; active: boolean; sort: number; removed_at?: string | null; profile_id?: string | null };
 /** weekday 0 = Sunday; times "HH:MM" in the salon's time zone. */
 export type WorkingHours = { id: string; stylist_id: string; weekday: number; starts: string; ends: string };
 export type TimeOff = { id: string; stylist_id: string; starts_at: string; ends_at: string; reason: string | null };
@@ -34,7 +35,8 @@ export type Appointment = {
   busy_until?: string;
 };
 
-export type NotificationKind = "booked" | "confirmed" | "moved" | "declined" | "cancelled_by_salon" | "cancelled_by_customer";
+export type NotificationKind = "booked" | "confirmed" | "moved" | "declined" | "cancelled_by_salon" | "cancelled_by_customer"
+  | "job_assigned" | "job_moved" | "job_removed";
 /** Made by the database when an appointment changes; the app picks the words (in the reader's language). */
 export type Notification = {
   id: string; user_id: string; kind: NotificationKind; appointment_id: string | null;

@@ -17,7 +17,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data, store } = useApp();
   const admin = data.me.role === "admin";
   // Customers: Home, Book, Styles, Account. The salon: Today, Calendar, Salon (styles, team, reports), Account.
-  const tabs: Tab[] = admin ? [
+  const tabs: Tab[] = data.me.role === "stylist" ? [
+    { href: "/app", label: t("nav.jobs"), icon: "home" },
+    { href: "/app/week", label: t("nav.week"), icon: "clock" },
+    { href: "/app/account", label: t("nav.account"), icon: "user" },
+  ] : admin ? [
     { href: "/app", label: t("nav.today"), icon: "home" },
     { href: "/app/calendar", label: t("nav.calendar"), icon: "calendar" },
     { href: "/app/salon", label: t("nav.salon"), icon: "scissors" },
@@ -49,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main id="main" className="mx-auto max-w-3xl px-4 py-5">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label={t("nav.main")} data-tabbar>
-        <ul className="grid grid-cols-4">
+        <ul className={`grid ${tabs.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
           {tabs.map((x) => (
             <li key={x.href}>
               <Link href={x.href} aria-current={active(x.href) ? "page" : undefined}
