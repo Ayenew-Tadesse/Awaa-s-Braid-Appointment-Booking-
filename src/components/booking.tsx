@@ -1,12 +1,12 @@
 "use client";
-// Booking in four steps, phone first: style → size and length → date, stylist
-// and a free time → review and send. Only times that are really free are
+// Booking in five steps, phone first: style → size and length → date, stylist
+// and a free time → where the stylist should come → review and send. Only times that are really free are
 // offered (domain/booking.ts); the server checks everything again on sending.
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/lib/data/app-context";
 import { errorText } from "@/lib/data/store";
-import { bookableDays, freeSlots, MAX_UPCOMING, optionsProblem, quote, type Busy, type Slot } from "@/lib/domain/booking";
+import { addressProblem, areaLabel, bookableDays, freeSlots, MAX_UPCOMING, optionsProblem, quote, type Address, type Busy, type Slot } from "@/lib/domain/booking";
 import { addDays, at, formatDay, formatDuration, formatMoney, formatTime, localDay, getDateLocale } from "@/lib/domain/time";
 import { isOpen, type Style, type StyleOption } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
@@ -16,7 +16,7 @@ import { StyleArt } from "./style-art";
 import { useToast } from "./toast";
 import { Empty, Spinner } from "./ui";
 
-type Step = 1 | 2 | 3 | 4 | "sent";
+type Step = 1 | 2 | 3 | 4 | 5 | "sent";
 
 export function Booking({ initialStyle }: { initialStyle?: string | null }) {
   const t = useT();
@@ -35,6 +35,9 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
   const [day, setDay] = useState<string>(() => localDay(now, tz));
   const [slot, setSlot] = useState<Slot | null>(null);
   const [note, setNote] = useState("");
+  // Where to come: the address saved from the last booking, if any.
+  const [place, setPlace] = useState<Address>(() => ({ address: data.me.address ?? "", city: data.me.city ?? "", zip: data.me.zip ?? "" }));
+  const [placeTried, setPlaceTried] = useState(false);
   const [busy, setBusy] = useState<Busy[] | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,18 +73,20 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
       ? (ids.includes(o.id) ? ids.filter((x) => x !== o.id) : [...ids, o.id])
       : [...ids.filter((x) => myOptions.find((m) => m.id === x)?.kind !== o.kind), o.id]));
   };
-  const back = () => { setError(null); setStep((s) => (s === 4 ? 3 : s === 3 ? (myOptions.length ? 2 : 1) : 1)); };
+  const placeProblem = addressProblem(place, salon);
+  const back = () => { setError(null); setStep((s) => (s === 5 ? 4 : s === 4 ? 3 : s === 3 ? (myOptions.length ? 2 : 1) : 1)); };
 
   const send = async () => {
     if (!style || !slot) return;
     setSending(true); setError(null);
     try {
-      await store.book({ styleId: style.id, optionIds, stylistId: stylist, startsAt: slot.startsAt, note });
+      await store.book({ styleId: style.id, optionIds, stylistId: stylist, startsAt: slot.startsAt, note, address: place });
       await reload();
       setStep("sent");
     } catch (e) {
       const msg = errorText(e);
       if (/no longer free|offered times/i.test(msg)) { setBusy(null); setSlot(null); setStep(3); setError(t("book.taken")); }
+      else if (/address|ZIP/i.test(msg)) { setStep(4); setPlaceTried(true); setError(msg); }
       else setError(msg);
       toast(msg, "error");
     } finally { setSending(false); }
@@ -106,8 +111,8 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
     );
   }
 
-  const n = step as 1 | 2 | 3 | 4;
-  const stepName = (["style", "options", "time", "review"] as const)[n - 1];
+  const n = step as 1 | 2 | 3 | 4 | 5;
+  const stepName = (["style", "options", "time", "place", "review"] as const)[n - 1];
   const groups = (["size", "length", "extra"] as const).map((k) => [k, myOptions.filter((o) => o.kind === k)] as const).filter(([, list]) => list.length);
   const partOfDay = (iso: string) => { const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hourCycle: "h23" }).format(new Date(iso))); return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"; };
 
@@ -121,8 +126,8 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
             <h1 className="text-xl font-semibold leading-tight">{t(`book.steps.${stepName}`)}</h1>
           </div>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-1.5" aria-hidden="true">
-          {[1, 2, 3, 4].map((i) => <span key={i} className={`h-1.5 rounded-full ${i <= n ? "bg-brand" : "bg-line"}`} />)}
+        <div className="mt-3 grid grid-cols-5 gap-1.5" aria-hidden="true">
+          {[1, 2, 3, 4, 5].map((i) => <span key={i} className={`h-1.5 rounded-full ${i <= n ? "bg-brand" : "bg-line"}`} />)}
         </div>
       </div>
 
@@ -229,7 +234,36 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
         </div>
       )}
 
-      {n === 4 && style && q && slot && (
+      {n === 4 && (
+        <div className="space-y-4" data-place>
+          <p className="muted text-sm">{t("book.placeLead", { area: areaLabel(salon.service_zips) })}</p>
+          <div>
+            <label htmlFor="address" className="label">{t("book.address")}</label>
+            <input id="address" className="input" autoComplete="street-address" maxLength={200} value={place.address} placeholder={t("book.addressPlaceholder")}
+              onChange={(e) => setPlace({ ...place, address: e.target.value })} aria-invalid={placeTried && placeProblem === "address"} />
+          </div>
+          <div className="grid grid-cols-[1fr_7.5rem] gap-3">
+            <div className="min-w-0">
+              <label htmlFor="city" className="label">{t("book.city")}</label>
+              <input id="city" className="input" autoComplete="address-level2" maxLength={80} value={place.city} placeholder={t("book.cityPlaceholder")}
+                onChange={(e) => setPlace({ ...place, city: e.target.value })} aria-invalid={placeTried && placeProblem === "address"} />
+            </div>
+            <div>
+              <label htmlFor="zip" className="label">{t("book.zip")}</label>
+              <input id="zip" className="input tabular-nums" autoComplete="postal-code" inputMode="numeric" maxLength={5} value={place.zip}
+                onChange={(e) => setPlace({ ...place, zip: e.target.value.replace(/\D/g, "").slice(0, 5) })} aria-invalid={placeTried && placeProblem !== null && placeProblem !== "address"} />
+            </div>
+          </div>
+          {placeTried && placeProblem && (
+            <p className="rounded-xl bg-warn-soft px-3 py-2 text-sm text-warn" role="alert" data-place-problem={placeProblem}>
+              {placeProblem === "area" ? t("book.outsideArea", { area: areaLabel(salon.service_zips), phone: salon.phone ?? "" }) : t(placeProblem === "zip" ? "book.badZip" : "book.needAddress")}
+            </p>
+          )}
+          <p className="muted text-xs">{t("book.placePrivate")}</p>
+        </div>
+      )}
+
+      {n === 5 && style && q && slot && (
         <div className="space-y-4">
           <section className="card divide-y divide-line" data-review>
             <div className="flex gap-3 p-4">
@@ -244,6 +278,8 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
               <dd>{formatDay(slot.startsAt, tz, { weekday: "long" })}<br />{formatTime(slot.startsAt, tz)} – {formatTime(slot.endsAt, tz)} ({formatDuration(q.minutes)})</dd>
               <dt className="muted">{t("book.with")}</dt>
               <dd>{stylist ? stylistName(stylist) : t("book.firstFree")}</dd>
+              <dt className="muted">{t("book.where")}</dt>
+              <dd data-review-place>{place.address.trim()}<br />{place.city.trim()} {place.zip.trim()}</dd>
               <dt className="muted">{t("book.price")}</dt>
               <dd className="font-semibold">{t("book.payAtSalon", { price: money(q.price) })}</dd>
             </dl>
@@ -265,7 +301,8 @@ export function Booking({ initialStyle }: { initialStyle?: string | null }) {
             </p>
             {n === 2 && <button type="button" className="btn btn-primary" disabled={!!problem} onClick={() => { setError(null); setStep(3); }} data-next>{t("common.continue")}</button>}
             {n === 3 && <button type="button" className="btn btn-primary" disabled={!slot} onClick={() => { setError(null); setStep(4); }} data-next>{t("common.continue")}</button>}
-            {n === 4 && <button type="button" className="btn btn-primary" disabled={sending} onClick={send} data-confirm>{sending ? t("book.sending") : t("book.confirm")}</button>}
+            {n === 4 && <button type="button" className="btn btn-primary" onClick={() => { setError(null); setPlaceTried(true); if (!placeProblem) setStep(5); }} data-next>{t("common.continue")}</button>}
+            {n === 5 && <button type="button" className="btn btn-primary" disabled={sending} onClick={send} data-confirm>{sending ? t("book.sending") : t("book.confirm")}</button>}
           </div>
         </div>
       )}

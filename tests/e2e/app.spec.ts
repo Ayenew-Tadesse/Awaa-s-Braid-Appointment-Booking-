@@ -8,7 +8,8 @@ test("the front page explains the salon, lists styles with prices, and leads to 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Beautiful braids, booked in a minute");
   await expect(page.locator("[data-style]")).toHaveCount(7);
   await expect(page.locator('[data-style="Knotless braids"]')).toContainText("From $220");
-  await expect(page.getByText("You pay at the salon on the day.")).toBeVisible();
+  await expect(page.getByText("You pay your stylist on the day.")).toBeVisible();
+  await expect(page.locator("[data-area]")).toContainText("At your home, in ZIP codes starting 200–209");
   await expect(page.getByText("This is a demo with a fictional salon and fictional people.")).toBeVisible();
   await noSideScroll(page);
   await page.locator("[data-cta-book]").click();
@@ -20,7 +21,7 @@ test("a customer sees only their own appointments, upcoming and past", async ({ 
   await page.click("[data-demo=customer]");
   await expect(page.getByRole("heading", { name: "Hello, Hana" })).toBeVisible();
   await expect(page.locator("[data-next]")).toContainText("Knotless braids");
-  await expect(page.locator("[data-next]")).toContainText("Pay at the salon: $");
+  await expect(page.locator("[data-next]")).toContainText("Pay your stylist: $");
   const upcoming = page.locator("[role=tabpanel] [data-appointment]");
   await expect(upcoming).toHaveCount(2);
   await page.click("[data-tab=past]");
@@ -28,6 +29,8 @@ test("a customer sees only their own appointments, upcoming and past", async ({ 
   await expect(page.locator("[role=tabpanel]")).toContainText("Done");
   // No other customer's name anywhere.
   for (const other of ["Liya Tesfaye", "Ruth Alemu", "Saba Girma", "Bethlehem Haile"]) await expect(page.getByText(other)).toHaveCount(0);
+  // Nor anyone else's address.
+  expect(await page.content()).not.toMatch(/48 Demo Avenue|7 Demo Court|230 Demo Place/);
   await noSideScroll(page);
 });
 

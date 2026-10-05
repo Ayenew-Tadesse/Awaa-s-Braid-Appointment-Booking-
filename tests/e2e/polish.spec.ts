@@ -29,6 +29,7 @@ test("a booking reaches the salon as a notification, and confirming it reaches t
   await page.locator("[data-days] button:not([disabled])").nth(1).click();
   await page.locator("[data-slots] button").first().click();
   await page.click("[data-next]");
+  await page.click("[data-next]"); // the saved address
   await page.click("[data-confirm]");
   await expect(page.locator("[data-booking-sent]")).toBeVisible();
   await page.goto("/app/account");

@@ -2,7 +2,9 @@
 -- after every file in supabase/migrations). It adds the salon, the usual
 -- braiding styles with sample US-dollar prices and options, and one stylist
 -- working Monday to Saturday, 9:00 AM to 7:00 PM. Change any of it afterwards in
--- the app under Salon. Replace the details marked "EDIT ME" first.
+-- the app under Salon. Replace the phone number marked "EDIT ME" first.
+-- Stylists go to customers' homes: ZIP codes starting 200 to 209, with an hour
+-- kept free between visits for travel (both changeable in the app).
 -- It refuses to run twice (if a salon is already there, nothing changes).
 do $$
 declare sid uuid;
@@ -11,10 +13,9 @@ begin
     raise exception 'A salon is already set up. Change it in the app under Salon.';
   end if;
 
-  insert into public.salon (name, tagline, phone, address, city)
+  insert into public.salon (name, tagline, phone, city)
   values ('Awaa Braids', 'Braids done with care, booked in a minute.',
-          '(000) 000-0000',             -- EDIT ME: the salon's phone
-          'Street, City, State',        -- EDIT ME: the salon's address
+          '(000) 000-0000',             -- EDIT ME: your business phone
           'Washington, DC area');
 
   -- The usual styles with sample prices (change them in the app).

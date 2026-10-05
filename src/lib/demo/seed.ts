@@ -1,5 +1,6 @@
 // The demo salon: Awaa Braids with its styles, stylists, customers and a
-// realistic diary around today. Every person here is fictional (phone numbers
+// realistic diary around today. Stylists go to customers' homes; the street
+// addresses are made up ("Demo" streets) in real DC-area towns and ZIP codes. Every person here is fictional (phone numbers
 // are in the 555-01xx range kept for fiction); prices are sample prices in US dollars. Built fresh relative to "now", so the diary always has
 // past, today's and upcoming appointments.
 import type { Appointment, AppointmentStatus, Notification, NotificationKind, OptionKind, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
@@ -39,8 +40,9 @@ const TZ = "America/New_York"; // the Washington, DC area
 
 const SALON: Salon = {
   id: id("5a", 1), name: "Awaa Braids", tagline: "Braids done with care, booked in a minute.",
-  phone: "(202) 555-0100", address: "Georgia Avenue, Silver Spring, MD (demo address)", city: "Washington, DC area",
+  phone: "(202) 555-0100", address: null, city: "Washington, DC area",
   timezone: TZ, currency: "USD", slot_minutes: 30, min_notice_hours: 2, booking_window_days: 60, cancel_hours: 24,
+  service_zips: ["200", "201", "202", "203", "204", "205", "206", "207", "208", "209"], travel_minutes: 60,
 };
 
 type StyleSeed = [name: string, category: Style["category"], minutes: number, price: number, description: string, options: "braids" | "cornrows" | "none"];
@@ -68,19 +70,24 @@ const STYLISTS: [string, string, number[]][] = [
   ["Hiwot", "Twists, cornrows and kids' styles.", [4]],
 ];
 
-// Customers (fictional). The first is the demo customer account.
-const CUSTOMERS: [string, string][] = [
-  ["Hana Bekele", "(202) 555-0101"], ["Liya Tesfaye", "(301) 555-0102"], ["Ruth Alemu", "(240) 555-0103"],
-  ["Saba Girma", "(703) 555-0104"], ["Eden Mulugeta", "(571) 555-0105"], ["Mahlet Kebede", "(202) 555-0106"],
-  ["Bethlehem Haile", "(301) 555-0107"], ["Yordanos Tadesse", "(703) 555-0108"],
+// Customers (fictional), with made-up home addresses. The first is the demo customer account.
+const CUSTOMERS: [string, string, string, string, string][] = [
+  ["Hana Bekele", "(202) 555-0101", "12 Demo Street NW, Apt 4", "Washington, DC", "20001"],
+  ["Liya Tesfaye", "(301) 555-0102", "48 Demo Avenue", "Silver Spring, MD", "20910"],
+  ["Ruth Alemu", "(240) 555-0103", "7 Demo Court", "Takoma Park, MD", "20912"],
+  ["Saba Girma", "(202) 555-0104", "230 Demo Place SE", "Washington, DC", "20003"],
+  ["Eden Mulugeta", "(301) 555-0105", "15 Demo Lane", "Hyattsville, MD", "20782"],
+  ["Mahlet Kebede", "(202) 555-0106", "901 Demo Street NE, Unit 2", "Washington, DC", "20002"],
+  ["Bethlehem Haile", "(301) 555-0107", "64 Demo Road", "Bethesda, MD", "20814"],
+  ["Yordanos Tadesse", "(240) 555-0108", "3 Demo Terrace", "Rockville, MD", "20850"],
 ];
 
 export function buildWorld(now = new Date()): World {
   const today = localDay(now, TZ);
   const created = new Date(now.getTime() - 40 * 86400000).toISOString();
 
-  const admin: Profile = { id: id("ad", 1), role: "admin", full_name: "Salon Manager", phone: "(202) 555-0110", created_at: created };
-  const customers: Profile[] = CUSTOMERS.map(([full_name, phone], i) => ({ id: id("c0", i + 1), role: "customer", full_name, phone, created_at: created }));
+  const admin: Profile = { id: id("ad", 1), role: "admin", full_name: "Salon Manager", phone: "(202) 555-0110", address: null, city: null, zip: null, created_at: created };
+  const customers: Profile[] = CUSTOMERS.map(([full_name, phone, address, city, zip], i) => ({ id: id("c0", i + 1), role: "customer", full_name, phone, address, city, zip, created_at: created }));
 
   const styles: Style[] = STYLES.map(([name, category, duration_minutes, price, description], i) => ({
     id: id("57", i + 1), name, description, category, image_url: null, duration_minutes, price, active: true, sort: i + 1,
@@ -132,12 +139,15 @@ export function buildWorld(now = new Date()): World {
     const chosen = options.filter((o) => o.style_id === style.id && labels.includes(o.label));
     const minutes = Math.max(15, style.duration_minutes + chosen.reduce((a, o) => a + o.extra_minutes, 0));
     const startsAt = at(day, start, TZ);
+    const home = customers[ci];
     appointments.push({
       id: id("a1", i + 1), customer_id: customers[ci].id, stylist_id: stylists[si].id, style_id: style.id, style_name: style.name,
       options: chosen.map((o) => ({ id: o.id, kind: o.kind, label: o.label })),
       starts_at: startsAt.toISOString(), ends_at: new Date(startsAt.getTime() + minutes * 60000).toISOString(),
       price: style.price + chosen.reduce((a, o) => a + o.extra_price, 0), status, note: null,
       cancelled_by: status === "cancelled" ? "customer" : null, created_at: created,
+      visit_address: home.address, visit_city: home.city, visit_zip: home.zip,
+      busy_until: new Date(startsAt.getTime() + (minutes + SALON.travel_minutes) * 60000).toISOString(),
     });
   });
 

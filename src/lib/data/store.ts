@@ -1,10 +1,13 @@
 // What the screens can ask for and do. Two stores implement it:
 //   SupabaseStore: the real salon (Row Level Security decides what you see);
 //   DemoStore: the demo salon kept in this browser, with the same rules (visibility.ts).
-import type { Busy } from "../domain/booking";
-import type { Appointment, AppointmentStatus, Dataset, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
+import type { Address, Busy } from "../domain/booking";
+import type { Appointment, AppointmentStatus, Dataset, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 
-export type NewBooking = { styleId: string; optionIds: string[]; stylistId: string | null; startsAt: string; note: string };
+/** address: where the stylist goes (saved on the profile for next time). */
+export type NewBooking = { styleId: string; optionIds: string[]; stylistId: string | null; startsAt: string; note: string; address: Address };
+/** The home-visit settings the salon can change. */
+export type VisitSettings = Pick<Salon, "service_zips" | "travel_minutes">;
 /** A style as the salon edits it (no id = a new style), with its options in order. */
 export type StyleDraft = Omit<Style, "id"> & { id?: string };
 export type OptionDraft = Pick<StyleOption, "kind" | "label" | "extra_minutes" | "extra_price">;
@@ -37,6 +40,8 @@ export interface Store {
   saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string>;
   addTimeOff(t: Omit<TimeOff, "id">): Promise<void>;
   removeTimeOff(id: string): Promise<void>;
+  /** The ZIP codes we travel to and the travel time between visits. */
+  saveVisitSettings(v: VisitSettings): Promise<void>;
 }
 
 /** A friendly message for any store error (database refusals, network, validation). */

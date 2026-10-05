@@ -1,11 +1,11 @@
 "use client";
-// The salon's view of one appointment: who, what, when, the note, and what can
+// The salon's view of one appointment: who, what, when, where (with a map link), the note, and what can
 // be done now (domain/salon.ts): confirm, decline, move, cancel, done or missed.
 // Moving offers only times when the chosen stylist is free (same length).
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/data/app-context";
 import { errorText } from "@/lib/data/store";
-import { busyFrom, freeSlots, type Slot } from "@/lib/domain/booking";
+import { busyFrom, freeSlots, mapsUrl, type Slot } from "@/lib/domain/booking";
 import { ACTION_STATUS, salonActions, type SalonAction } from "@/lib/domain/salon";
 import { addDays, at, formatDay, formatDuration, formatMoney, formatSlot, formatTime, localDay, getDateLocale } from "@/lib/domain/time";
 import type { Appointment } from "@/lib/domain/types";
@@ -48,9 +48,13 @@ export function AppointmentSheet({ appointment, onClose }: { appointment: Appoin
         <dt className="muted">{t("sheet.when")}</dt><dd>{formatSlot(a.starts_at, a.ends_at, tz)}<br /><span className="muted">{formatDuration(minutes)}</span></dd>
         <dt className="muted">{t("sheet.stylist")}</dt><dd>{data.stylists.find((s) => s.id === a.stylist_id)?.name}</dd>
         <dt className="muted">{t("sheet.price")}</dt><dd className="font-semibold">{formatMoney(a.price, data.salon.currency)}</dd>
+        {a.visit_address && <><dt className="muted">{t("sheet.where")}</dt><dd data-sheet-place>{a.visit_address}<br />{[a.visit_city, a.visit_zip].filter(Boolean).join(" ")}</dd></>}
         {a.note && <><dt className="muted">{t("sheet.note")}</dt><dd className="whitespace-pre-wrap">{a.note}</dd></>}
       </dl>
-      {phone && <a href={`tel:${phone}`} className="btn btn-ghost btn-sm mt-4"><Icon name="phone" size={16} />{t("sheet.call", { name: customer!.full_name.split(" ")[0] })}</a>}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {phone && <a href={`tel:${phone}`} className="btn btn-ghost btn-sm"><Icon name="phone" size={16} />{t("sheet.call", { name: customer!.full_name.split(" ")[0] })}</a>}
+        {a.visit_address && <a href={mapsUrl(a)} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" data-map><Icon name="pin" size={16} />{t("sheet.openMap")}</a>}
+      </div>
       <div className="mt-5 grid gap-2" data-actions>
         {!actions.length && <p className="muted text-sm">{t("sheet.final")}</p>}
         {actions.map((x) => (
@@ -81,7 +85,7 @@ function MoveSheet({ a, minutes, onDone, onBack }: { a: Appointment; minutes: nu
   const [slot, setSlot] = useState<Slot | null>(null);
   const [saving, setSaving] = useState(false);
   // Everyone else's bookings and time off (not this appointment itself).
-  const busy = useMemo(() => busyFrom(data.appointments.filter((x) => x.id !== a.id), data.timeOff), [data, a.id]);
+  const busy = useMemo(() => busyFrom(data.appointments.filter((x) => x.id !== a.id), data.timeOff, data.salon.travel_minutes), [data, a.id]);
   const slots = freeSlots({ salon: data.salon, stylists: data.stylists, hours: data.hours, busy, day, minutes, now, only: stylist, forSalon: true });
 
   const save = async () => {
@@ -94,7 +98,7 @@ function MoveSheet({ a, minutes, onDone, onBack }: { a: Appointment; minutes: nu
 
   return (
     <Sheet title={t("sheet.moveTitle")} onClose={onBack}>
-      <p className="muted mb-4 text-sm">{t("sheet.moveHint", { time: formatDuration(minutes) })}</p>
+      <p className="muted mb-4 text-sm">{t("sheet.moveHint", { time: formatDuration(minutes), travel: formatDuration(data.salon.travel_minutes) })}</p>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1" role="radiogroup" aria-label={t("sheet.stylist")}>
         {data.stylists.filter((s) => s.active).map((s) => (
           <button key={s.id} type="button" role="radio" aria-checked={stylist === s.id} onClick={() => { setStylist(s.id); setSlot(null); }} data-move-stylist={s.name}

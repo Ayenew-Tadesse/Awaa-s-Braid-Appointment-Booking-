@@ -13,6 +13,7 @@ export default function Salon() {
   const items: [string, IconName, string, string][] = [
     ["/app/salon/styles", "sparkle", t("salon.styles"), t("salon.stylesHint")],
     ["/app/salon/team", "users", t("salon.team"), t("salon.teamHint")],
+    ["/app/salon/visits", "pin", t("salon.visits"), t("salon.visitsHint")],
     ["/app/salon/reports", "chart", t("salon.reports"), t("salon.reportsHint")],
   ];
   return (

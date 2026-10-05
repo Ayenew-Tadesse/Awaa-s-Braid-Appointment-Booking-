@@ -76,7 +76,7 @@ export function NotificationsPage() {
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent"><Icon name="clock" /></span>
                 <div className="min-w-0">
                   <p className="font-semibold">{t("notes.reminder", { style: a.style_name, when: when(a.starts_at, data, t, now) })}</p>
-                  <p className="muted text-sm">{t("notes.reminderBody", { stylist: stylist(a.stylist_id), address: data.salon.address ?? data.salon.name })}</p>
+                  <p className="muted text-sm">{t("notes.reminderBody", { stylist: stylist(a.stylist_id), address: [a.visit_address, a.visit_city].filter(Boolean).join(", ") || t("notes.yourHome") })}</p>
                 </div>
               </li>
             ))}

@@ -2,7 +2,9 @@
 // cancel_appointment in supabase/migrations/20261005000002_security.sql):
 // the price and time come from the style and options; a time is offered only
 // if it is on the salon's grid, with enough notice, inside the booking window
-// and inside one of a stylist's working-hours blocks with nothing else booked.
+// and inside one of a stylist's working-hours blocks with nothing else booked,
+// leaving the salon's travel time between one home visit and the next
+// (20261009000001_home_visits.sql).
 import type { Appointment, Salon, Style, StyleOption, Stylist, WorkingHours } from "./types";
 import { isOpen } from "./types";
 import { addDays, at, localDay, weekdayOf } from "./time";
@@ -31,10 +33,54 @@ export function optionsProblem(style: Style, options: StyleOption[], chosenIds: 
 export type Busy = { stylist_id: string; starts_at: string; ends_at: string };
 export type Slot = { startsAt: string; endsAt: string; stylists: string[] };
 
-/** Busy times from open appointments and time off: only who is busy and when, like busy_times() (no names, no reasons). */
-export function busyFrom(appointments: Appointment[], timeOff: Busy[]): Busy[] {
-  return [...appointments.filter(isOpen), ...timeOff].map(({ stylist_id, starts_at, ends_at }) => ({ stylist_id, starts_at, ends_at }));
+/**
+ * Busy times from open appointments and time off: only who is busy and when, like
+ * busy_times() (no names, no reasons, no addresses). Each visit also holds the
+ * travel time before and after it, so the stylist can get to the next home.
+ */
+export function busyFrom(appointments: Appointment[], timeOff: Busy[], travelMinutes = 0): Busy[] {
+  const travel = travelMinutes * 60000;
+  return [
+    ...appointments.filter(isOpen).map((a) => ({
+      stylist_id: a.stylist_id,
+      starts_at: new Date(Date.parse(a.starts_at) - travel).toISOString(),
+      ends_at: a.busy_until ?? new Date(Date.parse(a.ends_at) + travel).toISOString(),
+    })),
+    ...timeOff.map(({ stylist_id, starts_at, ends_at }) => ({ stylist_id, starts_at, ends_at })),
+  ];
 }
+
+/** A home address as the customer types it. */
+export type Address = { address: string; city: string; zip: string };
+
+/** Do we travel to this ZIP code? (Its first three digits are in the salon's list.) */
+export const inServiceArea = (zip: string, salon: Pick<Salon, "service_zips">) => /^\d{5}$/.test(zip.trim()) && salon.service_zips.includes(zip.trim().slice(0, 3));
+
+/** Why we can't come to this address (null when we can), checked again by book_appointment(). */
+export function addressProblem(a: Address, salon: Pick<Salon, "service_zips">): "address" | "zip" | "area" | null {
+  if (a.address.trim().length < 5 || a.city.trim().length < 2) return "address";
+  if (!/^\d{5}$/.test(a.zip.trim())) return "zip";
+  if (!inServiceArea(a.zip, salon)) return "area";
+  return null;
+}
+
+/** The service area for people: ["200", …, "209", "220"] → "200–209, 220". */
+export function areaLabel(zips: string[]): string {
+  const n = [...new Set(zips)].map(Number).sort((a, b) => a - b);
+  const parts: string[] = [];
+  for (let i = 0; i < n.length; i++) {
+    let j = i;
+    while (j + 1 < n.length && n[j + 1] === n[j] + 1) j++;
+    const f = (x: number) => String(x).padStart(3, "0");
+    parts.push(j > i ? `${f(n[i])}–${f(n[j])}` : f(n[i]));
+    i = j;
+  }
+  return parts.join(", ");
+}
+
+/** A map link for the stylist (an ordinary Google Maps search; no key needed). */
+export const mapsUrl = (a: Pick<Appointment, "visit_address" | "visit_city" | "visit_zip">) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([a.visit_address, a.visit_city, a.visit_zip].filter(Boolean).join(", "))}`;
 
 /**
  * The free start times on a salon-local day for an appointment of `minutes`,
