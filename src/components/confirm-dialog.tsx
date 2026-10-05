@@ -2,20 +2,23 @@
 // A small "are you sure?" sheet: from the bottom on phones, centred on wider screens.
 // Escape or the backdrop keeps things as they are.
 import { useEffect, useRef } from "react";
+import { trapTab } from "./focus-trap";
 
 export function ConfirmDialog({ title, body, confirm, keep, busy, onConfirm, onClose }: {
   title: string; body: string; confirm: string; keep: string; busy?: boolean; onConfirm: () => void; onClose: () => void;
 }) {
   const keepBtn = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     keepBtn.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    addEventListener("keydown", onKey);
-    return () => removeEventListener("keydown", onKey);
+    // Capture first: an open confirmation handles keys before any sheet behind it.
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopImmediatePropagation(); onClose(); } else trapTab(e, box.current); };
+    addEventListener("keydown", onKey, true);
+    return () => removeEventListener("keydown", onKey, true);
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-[80] grid items-end bg-black/45 sm:place-items-center" onClick={onClose}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body"
+      <div ref={box} role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body"
         className="card w-full rounded-b-none p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-sm sm:rounded-b-[var(--radius)]" onClick={(e) => e.stopPropagation()}>
         <h2 id="confirm-title" className="text-lg font-semibold">{title}</h2>
         <p id="confirm-body" className="muted mt-1 text-sm">{body}</p>

@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useApp } from "@/lib/data/app-context";
 import { useT } from "@/lib/i18n";
 import { Icon, Logo, type IconName } from "./icons";
+import { Bell } from "./notifications";
+import { OfflineBanner } from "./offline";
 
 type Tab = { href: string; label: string; icon: IconName };
 
@@ -41,7 +43,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </nav>
+          <div className="ml-auto sm:ml-0"><Bell /></div>
         </div>
+        <OfflineBanner />
       </header>
       <main id="main" className="mx-auto max-w-3xl px-4 py-5">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label={t("nav.main")} data-tabbar>

@@ -166,3 +166,35 @@ select pg_temp.check(pg_temp.error_of($q$update appointments set status = 'compl
 update appointments set status = 'cancelled' where id = (select id from appointments where status = 'pending' and starts_at > now() limit 1);
 select pg_temp.check(exists (select 1 from appointments where status = 'cancelled' and cancelled_by = 'salon'), 'one the salon cancels says so');
 select pg_temp.back();
+
+/* ---------------------------------------------------------------- notifications (milestone 4) */
+-- (The appointments above were made before this point too: each new request told the salon.)
+select pg_temp.check((select count(*) from notifications where user_id = 'a0000000-0000-0000-0000-000000000001' and kind = 'booked') >= 5, 'every new request tells the salon');
+select pg_temp.check((select count(*) from notifications where user_id = 'a0000000-0000-0000-0000-000000000001' and kind = 'cancelled_by_customer') >= 1, 'a customer cancelling tells the salon');
+select pg_temp.check((select data ->> 'customer' from notifications where kind = 'booked' order by created_at limit 1) is not null, 'the salon''s note says who booked');
+
+create temp table n_req as select * from appointments where customer_id = 'c0000000-0000-0000-0000-000000000002' and status = 'pending' and starts_at > now() order by starts_at limit 2;
+grant select on n_req to authenticated;
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+update appointments set status = 'confirmed' where id = (select id from n_req order by starts_at limit 1);
+update appointments set status = 'cancelled' where id = (select id from n_req order by starts_at desc limit 1);
+select pg_temp.back();
+select pg_temp.check(exists (select 1 from notifications where user_id = 'c0000000-0000-0000-0000-000000000002' and kind = 'confirmed'), 'confirming tells the customer');
+select pg_temp.check(exists (select 1 from notifications where user_id = 'c0000000-0000-0000-0000-000000000002' and kind = 'declined'), 'declining a request tells the customer');
+
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000002');
+select pg_temp.check((select count(*) from notifications) > 0 and not exists (select 1 from notifications where user_id <> 'c0000000-0000-0000-0000-000000000002'), 'customers read only their own notifications');
+update notifications set read_at = now();
+select pg_temp.check(not exists (select 1 from notifications where read_at is null), 'customers mark their own as read');
+select pg_temp.check(pg_temp.refused($q$update notifications set kind = 'booked'$q$), 'customers cannot change what a notification says');
+select pg_temp.check(pg_temp.refused($q$insert into notifications (user_id, kind) values ('c0000000-0000-0000-0000-000000000002', 'confirmed')$q$), 'customers cannot make notifications');
+select pg_temp.check(pg_temp.refused($q$delete from notifications$q$), 'customers cannot delete notifications');
+select pg_temp.back();
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000001');
+select pg_temp.check(not exists (select 1 from notifications where user_id = 'c0000000-0000-0000-0000-000000000002'), 'nobody sees another customer''s notifications');
+select pg_temp.back();
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+update appointments set starts_at = starts_at + interval '14 days', ends_at = ends_at + interval '14 days' where id = (select id from n_req order by starts_at limit 1);
+select pg_temp.back();
+select pg_temp.check((select data ->> 'starts_at' from notifications where user_id = 'c0000000-0000-0000-0000-000000000002' and kind = 'moved')::timestamptz
+  = (select starts_at + interval '14 days' from n_req order by starts_at limit 1), 'moving tells the customer the new time');

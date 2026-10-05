@@ -1,7 +1,7 @@
 // The real salon, through Supabase. Every query runs as the signed-in person,
 // so Row Level Security decides what comes back (a customer gets only their own
 // appointments and profile, whatever this code asks for).
-import type { Appointment, AppointmentStatus, Dataset, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
+import type { Appointment, AppointmentStatus, Dataset, Notification, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { supabase } from "../supabase/client";
 import type { Busy } from "../domain/booking";
 import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
@@ -20,7 +20,7 @@ export class SupabaseStore implements Store {
     const sb = supabase();
     const { data: auth } = await sb.auth.getUser();
     if (!auth.user) throw new Error("Please sign in again.");
-    const [salon, people, styles, options, stylists, hours, timeOff, appointments] = await Promise.all([
+    const [salon, people, styles, options, stylists, hours, timeOff, appointments, notifications] = await Promise.all([
       rows<Salon>(sb.from("salon").select("*").limit(1)),
       rows<Profile>(sb.from("profiles").select("*").order("full_name")),
       rows<Style>(sb.from("styles").select("*").order("sort")),
@@ -29,6 +29,7 @@ export class SupabaseStore implements Store {
       rows<WorkingHours>(sb.from("working_hours").select("*")),
       rows<TimeOff>(sb.from("time_off").select("*").order("starts_at")),
       rows<Appointment>(sb.from("appointments").select("*").order("starts_at")),
+      rows<Notification>(sb.from("notifications").select("*").order("created_at", { ascending: false }).limit(100)),
     ]);
     const me = people.find((p) => p.id === auth.user.id);
     if (!salon[0]) throw new Error("The salon isn't set up yet. See docs/setup.md.");
@@ -40,10 +41,17 @@ export class SupabaseStore implements Store {
       stylists, timeOff,
       hours: hours.map((h) => ({ ...h, starts: hhmm(h.starts), ends: hhmm(h.ends) })),
       appointments: appointments.map((a) => ({ ...a, price: Number(a.price) })),
+      notifications,
     };
   }
 
   async signOut() { await supabase().auth.signOut(); }
+
+  async markRead(ids: string[]) {
+    if (!ids.length) return;
+    const { error } = await supabase().from("notifications").update({ read_at: new Date().toISOString() }).in("id", ids).is("read_at", null);
+    if (error) throw new Error(error.message);
+  }
 
   async busyTimes(from: string, to: string): Promise<Busy[]> {
     const { data, error } = await supabase().rpc("busy_times", { p_from: from, p_to: to });

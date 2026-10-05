@@ -26,6 +26,14 @@ export type Appointment = {
   cancelled_by: "customer" | "salon" | null; created_at: string;
 };
 
+export type NotificationKind = "booked" | "confirmed" | "moved" | "declined" | "cancelled_by_salon" | "cancelled_by_customer";
+/** Made by the database when an appointment changes; the app picks the words (in the reader's language). */
+export type Notification = {
+  id: string; user_id: string; kind: NotificationKind; appointment_id: string | null;
+  data: { style?: string; starts_at?: string; ends_at?: string; customer?: string; stylist?: string };
+  created_at: string; read_at: string | null;
+};
+
 /** Everything the signed-in person may see (the database's rules decide; the demo applies the same rules). */
 export type Dataset = {
   salon: Salon;
@@ -40,6 +48,8 @@ export type Dataset = {
   appointments: Appointment[];
   /** Just you for a customer; every customer for the salon. */
   people: Profile[];
+  /** Your own, newest first. */
+  notifications: Notification[];
 };
 
 /** Open appointments hold their time; the others don't. */

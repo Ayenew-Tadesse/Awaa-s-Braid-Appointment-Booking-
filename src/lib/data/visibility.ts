@@ -22,5 +22,7 @@ export function visibleTo(w: World, profileId: string): Dataset {
     timeOff: admin ? w.timeOff : [],
     appointments: w.appointments.filter((a) => admin || a.customer_id === me.id),
     people: admin ? w.profiles : [me],
+    // Newest first; made at the same moment, the later one first.
+    notifications: w.notifications.filter((n) => n.user_id === me.id).reverse().sort((a, b) => b.created_at.localeCompare(a.created_at)),
   });
 }

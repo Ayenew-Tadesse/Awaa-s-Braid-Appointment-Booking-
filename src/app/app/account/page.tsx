@@ -1,5 +1,6 @@
 "use client";
 import { Icon } from "@/components/icons";
+import { LanguageSwitch } from "@/components/language-switch";
 import { Avatar, Card, PageHeader } from "@/components/ui";
 import { useApp } from "@/lib/data/app-context";
 import { useT } from "@/lib/i18n";
@@ -29,6 +30,7 @@ export default function Account() {
           {s.city && <p className="muted text-sm">{s.city}</p>}
           {s.phone && <a className="btn btn-ghost btn-sm mt-3" href={`tel:${s.phone.replace(/\s/g, "")}`}><Icon name="phone" size={16} />{t("account.call")}</a>}
         </Card>
+        <Card title="Language / ቋንቋ"><LanguageSwitch /></Card>
         <button type="button" className="btn btn-ghost w-full" onClick={signOut} data-sign-out><Icon name="out" size={18} />{t("nav.signOut")}</button>
       </div>
     </>

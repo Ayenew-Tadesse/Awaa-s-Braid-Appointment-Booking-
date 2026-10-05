@@ -2,6 +2,11 @@
 // time zone (US Eastern for the DC area), whatever the phone's own setting,
 // with daylight saving handled.
 
+/** The language dates and times are written in ("en-US" or "am"); the app sets it from the chosen language. */
+let dateLocale = "en-US";
+export const setDateLocale = (l: string) => { dateLocale = l; };
+export const getDateLocale = () => dateLocale;
+
 /** The time zone's offset from UTC at that moment, in minutes (New York in summer: -240). */
 export function tzOffsetMinutes(at: Date, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -37,10 +42,10 @@ export function at(day: string, hhmm: string, timeZone: string): Date {
 }
 
 export function formatTime(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(dateLocale, { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 }
 export function formatDay(iso: string, timeZone: string, opts: { weekday?: "short" | "long"; year?: boolean } = {}): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: opts.weekday ?? "short", month: "short", day: "numeric", ...(opts.year ? { year: "numeric" } : {}) }).format(new Date(iso));
+  return new Intl.DateTimeFormat(dateLocale, { timeZone, weekday: opts.weekday ?? "short", month: "short", day: "numeric", ...(opts.year ? { year: "numeric" } : {}) }).format(new Date(iso));
 }
 /** "Tue, Oct 6 · 9:00 AM – 1:00 PM" */
 export function formatSlot(startIso: string, endIso: string, timeZone: string): string {

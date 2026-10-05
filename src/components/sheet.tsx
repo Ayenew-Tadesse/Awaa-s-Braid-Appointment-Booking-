@@ -3,6 +3,7 @@
 // screens), for details and actions. Escape, the backdrop or ✕ closes it.
 import { useEffect, useRef } from "react";
 import { useT } from "@/lib/i18n";
+import { trapTab } from "./focus-trap";
 import { Icon } from "./icons";
 
 export function Sheet({ title, onClose, children, label }: { title: string; onClose: () => void; children: React.ReactNode; label?: string }) {
@@ -10,7 +11,7 @@ export function Sheet({ title, onClose, children, label }: { title: string; onCl
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     box.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); else trapTab(e, box.current); };
     addEventListener("keydown", onKey);
     document.documentElement.style.overflow = "hidden";
     return () => { removeEventListener("keydown", onKey); document.documentElement.style.overflow = ""; };

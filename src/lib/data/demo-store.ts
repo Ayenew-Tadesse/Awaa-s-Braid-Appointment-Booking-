@@ -2,12 +2,12 @@
 // booking reaches the salon admin), saved in localStorage, with the database's
 // rules applied in code (visibility.ts, domain/booking.ts). Clearly a demo:
 // nothing leaves the browser; it starts fresh each day, and "Reset the demo" starts over.
-import type { Appointment, AppointmentStatus, Dataset, TimeOff } from "../domain/types";
+import type { Appointment, AppointmentStatus, Dataset, NotificationKind, TimeOff } from "../domain/types";
 import { isOpen } from "../domain/types";
 import { busyFrom, freeSlots, MAX_UPCOMING, optionsProblem, quote, cancelRule, type Busy } from "../domain/booking";
 import { hoursProblem, styleProblem } from "../domain/salon";
 import { localDay } from "../domain/time";
-import { buildWorld, type World } from "../demo/seed";
+import { buildWorld, noteFor, type World } from "../demo/seed";
 import { visibleTo } from "./visibility";
 import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
 
@@ -21,6 +21,7 @@ export function loadWorld(now = new Date()): World {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const w = JSON.parse(raw) as World;
+      w.notifications ??= []; // saved before notifications existed
       if (w.builtOn === localDay(now, w.salon.timezone)) return w;
     }
   } catch { /* fresh */ }
@@ -40,6 +41,18 @@ export class DemoStore implements Store {
   constructor(private profileId: string, private clock: () => Date = () => new Date()) {}
 
   async load(): Promise<Dataset> { return visibleTo(loadWorld(this.clock()), this.profileId); }
+
+  // The database's notification trigger, in code: who hears about what.
+  private notify(w: World, kind: NotificationKind, a: Appointment) {
+    const to = kind === "booked" || kind === "cancelled_by_customer" ? w.profiles.filter((p) => p.role === "admin").map((p) => p.id) : [a.customer_id];
+    for (const user of to) w.notifications.push(noteFor(w, user, kind, a, uid(), this.clock().toISOString()));
+  }
+
+  async markRead(ids: string[]) {
+    const w = loadWorld(this.clock());
+    for (const n of w.notifications) if (ids.includes(n.id) && n.user_id === this.profileId && !n.read_at) n.read_at = this.clock().toISOString();
+    saveWorld(w);
+  }
   async signOut() { setDemoAccount(null); }
 
   async busyTimes(from: string, to: string): Promise<Busy[]> {
@@ -78,6 +91,7 @@ export class DemoStore implements Store {
       status: "pending", note: b.note.trim().slice(0, 500) || null, cancelled_by: null, created_at: now.toISOString(),
     };
     w.appointments.push(a);
+    this.notify(w, "booked", a);
     saveWorld(w);
     return structuredClone(a);
   }
@@ -92,6 +106,7 @@ export class DemoStore implements Store {
     if (rule === "call") throw new Error(`Confirmed appointments can be cancelled up to ${w.salon.cancel_hours} hours before. Please call the salon.`);
     a.status = "cancelled";
     a.cancelled_by = "customer";
+    this.notify(w, "cancelled_by_customer", a);
     saveWorld(w);
   }
 
@@ -108,8 +123,11 @@ export class DemoStore implements Store {
     if (!a) throw new Error("Appointment not found.");
     if ((status === "completed" || status === "no_show") && Date.parse(a.starts_at) > this.clock().getTime())
       throw new Error("An appointment can be marked done or missed once it has started.");
+    const was = a.status;
     a.status = status;
     if (status === "cancelled") a.cancelled_by = "salon";
+    if (status === "confirmed" && was === "pending") this.notify(w, "confirmed", a);
+    if (status === "cancelled") this.notify(w, was === "pending" ? "declined" : "cancelled_by_salon", a);
     saveWorld(w);
   }
 
@@ -124,7 +142,9 @@ export class DemoStore implements Store {
       day: localDay(new Date(startsAt), w.salon.timezone), minutes, now, only: stylistId, forSalon: true })
       .find((s) => s.startsAt === new Date(startsAt).toISOString());
     if (!slot) throw new Error("That time is no longer free. Please pick another.");
+    const changed = a.starts_at !== slot.startsAt || a.stylist_id !== stylistId;
     a.starts_at = slot.startsAt; a.ends_at = slot.endsAt; a.stylist_id = stylistId;
+    if (changed) this.notify(w, "moved", a);
     saveWorld(w);
   }
 
