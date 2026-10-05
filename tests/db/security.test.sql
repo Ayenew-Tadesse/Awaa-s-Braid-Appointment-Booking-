@@ -340,3 +340,25 @@ select pg_temp.check((select role from profiles where id = 'd0000000-0000-0000-0
 select pg_temp.act_as('d0000000-0000-0000-0000-000000000001');
 select pg_temp.check((select count(*) from appointments) = 0, 'and it sees no jobs any more');
 select pg_temp.back();
+
+/* ---------------------------------------------------------------- join requests (the staff website) */
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('d0000000-0000-0000-0000-000000000002', 'meron@test', '{"full_name":"Meron Stylist","phone":"(301) 555-0113","join_team":"true","role":"admin"}');
+select pg_temp.check((select role || ' ' || wants_stylist from profiles where id = 'd0000000-0000-0000-0000-000000000002') = 'customer true', 'joining the team is only a request: the account is still a customer');
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000002');
+select pg_temp.check((select count(*) from appointments) = 0 and (select count(*) from profiles) = 1, 'a waiting account sees nothing more than a customer');
+select pg_temp.back();
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
+select pg_temp.check(pg_temp.error_of($q$update profiles set wants_stylist = true where id = 'c0000000-0000-0000-0000-000000000004'$q$) like '%signing up on the staff website%', 'a customer cannot turn their account into a request afterwards');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_profile('51000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000004')$q$) like '%Only the salon%', 'customers cannot link a waiting account');
+select pg_temp.back();
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select pg_temp.check((select count(*) from profiles where wants_stylist and role = 'customer') = 1, 'the salon sees who is waiting to join');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_profile('51000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001')$q$) like '%admin account%', 'an admin account cannot be linked as a stylist');
+select link_stylist_profile('51000000-0000-0000-0000-000000000004', 'd0000000-0000-0000-0000-000000000002');
+select pg_temp.check((select role || ' ' || wants_stylist from profiles where id = 'd0000000-0000-0000-0000-000000000002') = 'stylist false', 'the salon links a waiting account to a stylist in one tap');
+select pg_temp.check((select profile_id from stylists where id = '51000000-0000-0000-0000-000000000004') = 'd0000000-0000-0000-0000-000000000002', 'the stylist now has that login');
+select pg_temp.back();
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000002');
+select pg_temp.check((select count(*) from appointments) > 0 and not exists (select 1 from appointments where stylist_id <> '51000000-0000-0000-0000-000000000004'), 'once linked, they see only their own jobs');
+select pg_temp.back();

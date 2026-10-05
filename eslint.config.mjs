@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    ".next-*/**", // the customer and staff websites built by the tests
     "out/**",
     "build/**",
     "next-env.d.ts",

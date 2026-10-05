@@ -159,9 +159,9 @@ export function buildWorld(now = new Date()): World {
   const timeOff: TimeOff[] = [{ id: id("70", 1), stylist_id: stylists[1].id, starts_at: at(away, "09:00", TZ).toISOString(), ends_at: at(away, "19:00", TZ).toISOString(), reason: "Training day" }];
 
   // Logins for stylists: Selam's is linked (the demo stylist account); Hiwot has
-  // signed up but the salon hasn't linked her yet (try "Link a login").
+  // asked to join the team and is waiting for the salon (try "Waiting to join").
   const selamLogin: Profile = { id: id("d0", 1), role: "stylist", full_name: "Selam Tesfaye", phone: "(202) 555-0111", address: null, city: null, zip: null, created_at: created };
-  const hiwotLogin: Profile = { id: id("d0", 2), role: "customer", full_name: "Hiwot Desta", phone: "(301) 555-0112", address: null, city: null, zip: null, created_at: created };
+  const hiwotLogin: Profile = { id: id("d0", 2), role: "customer", full_name: "Hiwot Desta", phone: "(301) 555-0112", address: null, city: null, zip: null, created_at: created, wants_stylist: true };
   stylists[0].profile_id = selamLogin.id;
 
   // What the notification trigger would have sent: the salon heard about each open

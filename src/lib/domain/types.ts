@@ -12,7 +12,9 @@ export type Salon = {
   service_zips: string[]; travel_minutes: number;
 };
 /** address, city and zip: the customer's home, saved from their last booking (only they and the salon see it). */
-export type Profile = { id: string; role: Role; full_name: string; phone: string | null; address: string | null; city: string | null; zip: string | null; created_at: string };
+export type Profile = { id: string; role: Role; full_name: string; phone: string | null; address: string | null; city: string | null; zip: string | null; created_at: string;
+  /** Signed up on the staff website to join the team; waiting for the salon. */
+  wants_stylist?: boolean };
 export type Style = {
   id: string; name: string; description: string | null; category: StyleCategory; image_url: string | null;
   duration_minutes: number; price: number; active: boolean; sort: number;
