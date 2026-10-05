@@ -88,3 +88,73 @@ describe("booking in the demo (the database's rules)", () => {
     expect(busy.every((b) => Object.keys(b).sort().join() === "ends_at,starts_at,stylist_id")).toBe(true);
   });
 });
+
+describe("the salon's tools in the demo (admins only)", () => {
+  beforeEach(() => { mem.clear(); resetDemo(); });
+  const req = () => w0().appointments.find((a) => a.status === "pending" && Date.parse(a.starts_at) > NOW.getTime())!;
+
+  it("customers can't use them", async () => {
+    const c = new DemoStore(customer(), clock);
+    await expect(c.setStatus(req().id, "confirmed")).rejects.toThrow("permission");
+    await expect(c.saveStyle({ ...style("Cornrows"), price: 1 }, [])).rejects.toThrow("permission");
+    await expect(c.addTimeOff({ stylist_id: w0().stylists[0].id, starts_at: NOW.toISOString(), ends_at: new Date(NOW.getTime() + 3600000).toISOString(), reason: null })).rejects.toThrow("permission");
+  });
+
+  it("confirm, decline (says the salon cancelled), and done or missed only once started", async () => {
+    const s = new DemoStore(admin(), clock);
+    const r = req();
+    await s.setStatus(r.id, "confirmed");
+    expect(w0().appointments.find((a) => a.id === r.id)!.status).toBe("confirmed");
+    await expect(s.setStatus(r.id, "completed")).rejects.toThrow("once it has started");
+    await s.setStatus(r.id, "cancelled");
+    expect(w0().appointments.find((a) => a.id === r.id)!.cancelled_by).toBe("salon");
+  });
+
+  it("move an appointment to a free time (same length), never onto a busy stylist", async () => {
+    const s = new DemoStore(admin(), clock);
+    const r = req();
+    const length = Date.parse(r.ends_at) - Date.parse(r.starts_at);
+    const to = at("2026-10-16", "13:00", tz).toISOString();
+    await s.reschedule(r.id, to, w0().stylists[0].id);
+    const moved = w0().appointments.find((a) => a.id === r.id)!;
+    expect([moved.starts_at, Date.parse(moved.ends_at) - Date.parse(moved.starts_at), moved.stylist_id]).toEqual([to, length, w0().stylists[0].id]);
+    const other = w0().appointments.find((a) => a.id !== r.id && a.status === "pending" && Date.parse(a.starts_at) > NOW.getTime())!;
+    await expect(s.reschedule(other.id, to, w0().stylists[0].id)).rejects.toThrow("no longer free");
+  });
+
+  it("add a style with options, which customers then see and can book", async () => {
+    const s = new DemoStore(admin(), clock);
+    const id = await s.saveStyle({ name: "Goddess locs", description: "", category: "locs", image_url: null, duration_minutes: 300, price: 260, active: true, sort: 8 },
+      [{ kind: "length", label: "Shoulder", extra_minutes: 0, extra_price: 0 }, { kind: "length", label: "Waist", extra_minutes: 60, extra_price: 50 }]);
+    const seen = await new DemoStore(customer(), clock).load();
+    expect(seen.styles.some((x) => x.id === id)).toBe(true);
+    expect(seen.options.filter((o) => o.style_id === id).map((o) => o.label)).toEqual(["Shoulder", "Waist"]);
+    await expect(s.saveStyle({ ...style("Cornrows"), duration_minutes: 5 }, [])).rejects.toThrow("15 minutes");
+  });
+
+  it("a hidden style disappears for customers but stays for the salon", async () => {
+    const s = new DemoStore(admin(), clock);
+    const box = style("Box braids");
+    await s.saveStyle({ ...box, active: false }, w0().options.filter((o) => o.style_id === box.id));
+    expect((await new DemoStore(customer(), clock).load()).styles.some((x) => x.id === box.id)).toBe(false);
+    expect((await s.load()).styles.some((x) => x.id === box.id)).toBe(true);
+  });
+
+  it("change a stylist's week; overlapping blocks are refused", async () => {
+    const s = new DemoStore(admin(), clock);
+    const meron = w0().stylists[1];
+    await s.saveStylist(meron, [{ weekday: 3, starts: "10:00", ends: "16:00" }]);
+    expect(w0().hours.filter((h) => h.stylist_id === meron.id).map((h) => `${h.weekday} ${h.starts}-${h.ends}`)).toEqual(["3 10:00-16:00"]);
+    await expect(s.saveStylist(meron, [{ weekday: 3, starts: "10:00", ends: "16:00" }, { weekday: 3, starts: "15:00", ends: "18:00" }])).rejects.toThrow("overlap");
+  });
+
+  it("time off blocks booking, and removing it frees the time again", async () => {
+    const s = new DemoStore(admin(), clock);
+    const selam = w0().stylists[0].id;
+    await s.addTimeOff({ stylist_id: selam, starts_at: at("2026-10-16", "09:00", tz).toISOString(), ends_at: at("2026-10-16", "19:00", tz).toISOString(), reason: "Dentist" });
+    const c = new DemoStore(w0().profiles[3].id, clock);
+    await expect(c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "" })).rejects.toThrow("no longer free");
+    await s.removeTimeOff(w0().timeOff.find((t) => t.reason === "Dentist")!.id);
+    await c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "" });
+  });
+});

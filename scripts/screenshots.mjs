@@ -72,6 +72,28 @@ await shot("admin-today", "The salon's day");
 await page.locator("[data-requests]").evaluate((el) => window.scrollTo(0, el.closest("section").getBoundingClientRect().top + window.scrollY - 64));
 await shot("admin-requests", "Requests to confirm");
 
+// The salon's tools: one appointment's actions, the calendar, styles, the team's week and reports.
+await page.locator("[data-requests] [data-appointment]").first().click();
+await page.waitForSelector("[data-sheet] [data-actions]");
+await shot("salon-sheet", "Confirm, decline or move");
+await page.keyboard.press("Escape");
+await page.goto(`${BASE}/app/calendar`);
+await page.waitForSelector("[data-cal-stylist]");
+await shot("salon-calendar", "The day, per stylist");
+await page.goto(`${BASE}/app/salon/styles`);
+await page.locator("[data-manage-style]").first().click();
+await page.waitForSelector("[data-style-editor]");
+await shot("salon-style", "Edit a style and its options");
+await page.keyboard.press("Escape");
+await page.goto(`${BASE}/app/salon/team`);
+await page.locator("[data-manage-stylist]").first().click();
+await page.waitForSelector("[data-stylist-editor]");
+await shot("salon-hours", "A stylist's working week");
+await page.keyboard.press("Escape");
+await page.goto(`${BASE}/app/salon/reports`);
+await page.waitForSelector("[data-week-bars]");
+await shot("salon-reports", "Reports");
+
 await browser.close();
 writeFileSync(`${OUT}/manifest.json`, JSON.stringify({
   app: "Awaa Braids", device: "phone", size: "390x844",

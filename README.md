@@ -18,7 +18,12 @@ kept in your browser.
 
 - **Booking (milestone 2):** four steps on a phone: a style, then size and length with the price and time adding up as you choose, then a day, any stylist or a favourite and a time that is really free, then review and send. Requests wait for the salon to confirm. Customers can cancel a request any time before it starts, and a confirmed appointment up to 24 hours before; closer than that, the app shows the salon's number.
 
-Coming next: the salon's tools to confirm, reschedule and manage styles and hours (3), reminders and Amharic (4).
+- **The salon's tools (milestone 3):** tabs Today · Calendar · Salon · Account.
+  - Tap any appointment to confirm, decline, move it to another free time or stylist, cancel it, or (once it has started) mark it done or missed.
+  - Calendar: each stylist's day (hours, time off, appointments) and the week at a glance.
+  - Salon: styles and prices with sizes, lengths and extras (hide a style to stop bookings); stylists with their working week (with breaks) and time off; reports (bookings per week, most booked styles, no-show and cancellation rates, earned and expected).
+
+Coming next: reminders, polish and Amharic (4).
 
 ## Security
 

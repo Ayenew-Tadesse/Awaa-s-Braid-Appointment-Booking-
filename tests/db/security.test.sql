@@ -146,3 +146,23 @@ update appointments set starts_at = now() + interval '3 hours', ends_at = now() 
 select pg_temp.act_as('c0000000-0000-0000-0000-000000000001');
 select pg_temp.check(pg_temp.error_of($q$select cancel_appointment((select id from booked))$q$) like '%up to 24 hours%', 'a confirmed appointment within 24 hours needs a call to the salon');
 select pg_temp.back();
+
+/* ---------------------------------------------------------------- the salon's tools (milestone 3) */
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000001');
+select pg_temp.check(pg_temp.error_of($q$select save_style_options('5e000000-0000-0000-0000-000000000001', '[]')$q$) like '%Only the salon%', 'customers cannot replace style options');
+select pg_temp.check(pg_temp.error_of($q$select save_working_hours('51000000-0000-0000-0000-000000000001', '[]')$q$) like '%Only the salon%', 'customers cannot change working hours');
+select pg_temp.check(pg_temp.refused($q$insert into time_off (stylist_id, starts_at, ends_at) values ('51000000-0000-0000-0000-000000000001', now(), now() + interval '1 hour')$q$), 'customers cannot add time off');
+select pg_temp.check(pg_temp.refused($q$update stylists set active = false$q$), 'customers cannot change stylists');
+select pg_temp.back();
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select save_style_options('5e000000-0000-0000-0000-000000000002', '[{"kind":"extra","label":"Pattern design","extra_minutes":30,"extra_price":25},{"kind":"extra","label":"Beads","extra_minutes":15,"extra_price":10}]');
+select pg_temp.check((select string_agg(label, ',' order by sort) from style_options where style_id = '5e000000-0000-0000-0000-000000000002') = 'Pattern design,Beads', 'the salon replaces a style''s options in one step');
+select save_working_hours('51000000-0000-0000-0000-000000000002', '[{"weekday":1,"starts":"10:00","ends":"18:00"}]');
+select pg_temp.check((select count(*) from working_hours where stylist_id = '51000000-0000-0000-0000-000000000002') = 1, 'the salon replaces a stylist''s week');
+select pg_temp.check(pg_temp.error_of($q$select save_working_hours('51000000-0000-0000-0000-000000000002', '[{"weekday":1,"starts":"09:00","ends":"14:00"},{"weekday":1,"starts":"13:00","ends":"18:00"}]')$q$) like '%overlap%', 'overlapping blocks are refused');
+select pg_temp.check((select count(*) from working_hours where stylist_id = '51000000-0000-0000-0000-000000000002') = 1, 'a refused week leaves the old one as it was');
+select pg_temp.check(pg_temp.error_of($q$update appointments set status = 'completed' where starts_at > now() and status = 'pending'$q$) like '%once it has started%', 'a future appointment cannot be marked done');
+update appointments set status = 'cancelled' where id = (select id from appointments where status = 'pending' and starts_at > now() limit 1);
+select pg_temp.check(exists (select 1 from appointments where status = 'cancelled' and cancelled_by = 'salon'), 'one the salon cancels says so');
+select pg_temp.back();

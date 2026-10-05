@@ -14,9 +14,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { data, store } = useApp();
   const admin = data.me.role === "admin";
-  const tabs: Tab[] = [
-    { href: "/app", label: admin ? t("nav.today") : t("nav.home"), icon: "home" },
-    ...(admin ? [] : [{ href: "/app/book", label: t("nav.book"), icon: "calendar" } as Tab]),
+  // Customers: Home, Book, Styles, Account. The salon: Today, Calendar, Salon (styles, team, reports), Account.
+  const tabs: Tab[] = admin ? [
+    { href: "/app", label: t("nav.today"), icon: "home" },
+    { href: "/app/calendar", label: t("nav.calendar"), icon: "calendar" },
+    { href: "/app/salon", label: t("nav.salon"), icon: "scissors" },
+    { href: "/app/account", label: t("nav.account"), icon: "user" },
+  ] : [
+    { href: "/app", label: t("nav.home"), icon: "home" },
+    { href: "/app/book", label: t("nav.book"), icon: "calendar" },
     { href: "/app/styles", label: t("nav.styles"), icon: "sparkle" },
     { href: "/app/account", label: t("nav.account"), icon: "user" },
   ];
@@ -39,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main id="main" className="mx-auto max-w-3xl px-4 py-5">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] sm:hidden" aria-label={t("nav.main")} data-tabbar>
-        <ul className={`grid ${tabs.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+        <ul className="grid grid-cols-4">
           {tabs.map((x) => (
             <li key={x.href}>
               <Link href={x.href} aria-current={active(x.href) ? "page" : undefined}

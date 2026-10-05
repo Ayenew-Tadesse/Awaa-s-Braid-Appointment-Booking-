@@ -14,6 +14,10 @@ const P = {
   out: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   arrow: "M5 12h14M13 6l6 6-6 6",
   shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10",
+  x: "M18 6 6 18M6 6l12 12",
+  chart: "M3 3v18h18M7 15l4-4 3 3 6-7",
+  chevron: "M9 6l6 6-6 6",
+  plus: "M12 5v14M5 12h14",
   scissors: "M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12",
 } as const;
 export type IconName = keyof typeof P;
