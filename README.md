@@ -46,6 +46,12 @@ kept in your browser.
   - **Stylist logins:** a stylist signs up like anyone; the admin links that account under Login on the stylist's page. The stylist then has Jobs · Week · Account: their own jobs (customer and phone, address and map link, note, what to collect), their hours and time off, and notifications when a job is assigned, moved or taken off their list. They mark a job done or missed once it has started; everything else stays with the admin. Try it with "Continue as Stylist" in the demo.
   - Removing a stylist: first move their upcoming appointments ("Move all" to a stylist who is free at the same times; customers are told). They're then off the team and never offered for booking, while past appointments and reports keep their name.
 
+- **Three websites from one codebase** (see [docs/setup.md](docs/setup.md)):
+  - **Customer website** (`NEXT_PUBLIC_SITE=customer`): customers sign in and sign up, book and see their appointments.
+  - **Staff website** (`NEXT_PUBLIC_SITE=staff`): opens on staff sign-in with two doors, *Salon admin* (sign in only) and *I'm a stylist* (sign in, or ask to join the team). Not listed by search engines.
+  - **Demo website** (no Supabase values): the fictional salon with the tour and demo accounts, for the portfolio. No database.
+  - Each person stays on their website: staff who sign in on the customer website are sent to the staff one; a customer can't use the staff website; someone who asked to join waits until the admin adds them under **Waiting to join**.
+
 ## Security
 
 - Every table has Row Level Security. A customer only ever sees their own profile and appointments; nobody sees another customer's name, phone or bookings.
@@ -62,7 +68,8 @@ npm install
 npm run dev          # http://localhost:3000 (demo mode without Supabase values)
 npm test             # unit tests
 npm run test:db      # database security tests (needs PostgreSQL 15+)
-npm run test:e2e     # browser tests at phone, tablet and laptop widths
+npm run test:e2e     # browser tests of the demo website at phone, tablet and laptop widths
+npm run test:sites   # the customer and staff websites' sign-in and sign-up pages
 ```
 
 To connect a real salon, see [docs/setup.md](docs/setup.md).

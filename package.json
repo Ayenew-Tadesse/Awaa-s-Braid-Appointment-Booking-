@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:db": "tests/db/run.sh"
+    "test:db": "tests/db/run.sh",
+    "test:sites": "playwright test --config playwright.sites.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

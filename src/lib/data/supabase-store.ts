@@ -125,6 +125,16 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(error.message);
   }
 
+  async linkProfile(stylistId: string, profileId: string) {
+    const { error } = await supabase().rpc("link_stylist_profile", { p_stylist: stylistId, p_profile: profileId });
+    if (error) throw new Error(error.message);
+  }
+
+  async declineJoin(profileId: string) {
+    const { error } = await supabase().from("profiles").update({ wants_stylist: false }).eq("id", profileId);
+    if (error) throw new Error(error.message);
+  }
+
   async unlinkLogin(stylistId: string) {
     const { error } = await supabase().rpc("unlink_stylist_login", { p_stylist: stylistId });
     if (error) throw new Error(error.message);

@@ -11,7 +11,7 @@ import { buildWorld, noteFor, type World } from "../demo/seed";
 import { visibleTo } from "./visibility";
 import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft, VisitSettings } from "./store";
 
-const KEY = "awaa_demo_world_v3"; // v3: stylist logins
+const KEY = "awaa_demo_world_v4"; // v4: join requests
 const ACCOUNT = "awaa_demo_account";
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -240,6 +240,30 @@ export class DemoStore implements Store {
     if (s.profile_id && s.profile_id !== p.id) this.unlink(w, stylistId);
     s.profile_id = p.id;
     p.role = "stylist";
+    p.wants_stylist = false;
+    saveWorld(w);
+  }
+
+  // Like link_stylist_profile(): a waiting account, by its profile.
+  async linkProfile(stylistId: string, profileId: string) {
+    const w = this.asAdmin();
+    const s = w.stylists.find((x) => x.id === stylistId && !x.removed_at);
+    const p = w.profiles.find((x) => x.id === profileId);
+    if (!s) throw new Error("Stylist not found.");
+    if (!p) throw new Error("Account not found.");
+    if (p.role === "admin") throw new Error("That is an admin account.");
+    if (w.stylists.some((x) => x.profile_id === p.id && x.id !== stylistId)) throw new Error("That account is already linked to another stylist.");
+    if (s.profile_id && s.profile_id !== p.id) this.unlink(w, stylistId);
+    s.profile_id = p.id;
+    p.role = "stylist";
+    p.wants_stylist = false;
+    saveWorld(w);
+  }
+
+  async declineJoin(profileId: string) {
+    const w = this.asAdmin();
+    const p = w.profiles.find((x) => x.id === profileId);
+    if (p) p.wants_stylist = false;
     saveWorld(w);
   }
 

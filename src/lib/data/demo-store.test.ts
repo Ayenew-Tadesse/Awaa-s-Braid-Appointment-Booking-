@@ -80,7 +80,7 @@ describe("booking in the demo (the database's rules)", () => {
     const tomorrow = w.appointments.find((a) => a.customer_id === customer() && a.status === "confirmed")!;
     tomorrow.starts_at = new Date(NOW.getTime() + 10 * 3600000).toISOString();
     tomorrow.ends_at = new Date(NOW.getTime() + 14 * 3600000).toISOString();
-    localStorage.setItem("awaa_demo_world_v3", JSON.stringify(w));
+    localStorage.setItem("awaa_demo_world_v4", JSON.stringify(w));
     await expect(new DemoStore(customer(), clock).cancel(tomorrow.id)).rejects.toThrow("call the salon");
   });
 
@@ -181,6 +181,18 @@ describe("the salon's tools in the demo (admins only)", () => {
     await s.unlinkLogin(hiwot.id);
     expect(w0().profiles.find((p) => p.id === login)!.role).toBe("customer");
     expect((await new DemoStore(login, clock).load()).appointments).toEqual([]);
+  });
+
+  it("someone waiting to join: only the salon adds them to the team (or declines)", async () => {
+    const s = new DemoStore(admin(), clock);
+    const hiwotLogin = w0().profiles.find((p) => p.wants_stylist)!;
+    expect((await s.load()).people.some((p) => p.id === hiwotLogin.id && p.wants_stylist)).toBe(true);
+    await expect(new DemoStore(customer(), clock).linkProfile(w0().stylists[2].id, hiwotLogin.id)).rejects.toThrow("permission");
+    await expect(s.linkProfile(w0().stylists[2].id, admin())).rejects.toThrow("admin account");
+    await s.linkProfile(w0().stylists[2].id, hiwotLogin.id);
+    const p = w0().profiles.find((x) => x.id === hiwotLogin.id)!;
+    expect([p.role, p.wants_stylist]).toEqual(["stylist", false]);
+    expect((await new DemoStore(hiwotLogin.id, clock).load()).appointments.every((a) => a.stylist_id === w0().stylists[2].id)).toBe(true);
   });
 
   it("a day's jobs read as a message for the stylist", () => {

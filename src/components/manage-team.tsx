@@ -30,6 +30,8 @@ export function ManageTeam() {
   if (data.me.role !== "admin") return <Empty text={t("common.adminOnly")} />;
   const summary = (id: string) => weekSummary(id, data.hours, t);
   const team = data.stylists.filter((s) => !s.removed_at).sort((a, b) => a.sort - b.sort);
+  // Accounts that signed up on the staff website to join the team.
+  const waiting = data.people.filter((p) => p.role === "customer" && p.wants_stylist);
   const upcoming = data.timeOff.filter((x) => Date.parse(x.ends_at) > now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const remove = async (id: string) => {
     try { await store.removeTimeOff(id); await reload(); toast(t("common.saved")); } catch (e) { toast(errorText(e), "error"); }
@@ -57,6 +59,15 @@ export function ManageTeam() {
         })}
       </ul>
 
+      {waiting.length > 0 && (
+        <Card className="mt-5" title={t("salon.waiting")}>
+          <p className="muted mb-2 text-sm">{t("salon.waitingHint")}</p>
+          <ul className="divide-y divide-line" data-waiting>
+            {waiting.map((p) => <WaitingRow key={p.id} id={p.id} name={p.full_name} phone={p.phone} />)}
+          </ul>
+        </Card>
+      )}
+
       <Card className="mt-5" title={t("salon.timeOff")} action={<button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(true)} data-add-time-off><Icon name="plus" size={16} />{t("salon.addTimeOff")}</button>}>
         {upcoming.length ? (
           <ul className="divide-y divide-line" data-time-off-list>
@@ -75,6 +86,39 @@ export function ManageTeam() {
       {editing && <StylistEditor stylist={null} onClose={() => setEditing(null)} />}
       {adding && <TimeOffEditor onClose={() => setAdding(false)} />}
     </>
+  );
+}
+
+/** One account waiting to join: link it to a stylist without a login, add it as a new stylist, or decline. */
+function WaitingRow({ id, name, phone }: { id: string; name: string; phone: string | null }) {
+  const t = useT();
+  const toast = useToast();
+  const { data, store, reload } = useApp();
+  const free = data.stylists.filter((s) => !s.removed_at && !s.profile_id).sort((a, b) => a.sort - b.sort);
+  const [to, setTo] = useState("new");
+  const [busy, setBusy] = useState(false);
+  const run = async (f: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try { await f(); await reload(); toast(done); } catch (e) { toast(errorText(e), "error"); } finally { setBusy(false); }
+  };
+  const link = () => run(async () => {
+    const stylist = to !== "new" ? to : await store.saveStylist({ name: name || t("salon.newStylist"), bio: null, active: true, sort: Math.max(0, ...data.stylists.map((x) => x.sort)) + 1 },
+      [1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, starts: "09:00", ends: "19:00" })));
+    await store.linkProfile(stylist, id);
+  }, t("salon.linked"));
+  return (
+    <li className="space-y-2 py-3" data-waiting-row={name}>
+      <p className="text-sm"><span className="font-semibold">{name || "—"}</span>{phone && <span className="muted"> · {phone}</span>}</p>
+      <div className="flex flex-wrap gap-2">
+        <label className="sr-only" htmlFor={`to-${id}`}>{t("salon.linkTo")}</label>
+        <select id={`to-${id}`} className="input min-h-10 min-w-0 flex-1" value={to} onChange={(e) => setTo(e.target.value)}>
+          <option value="new">{t("salon.addNew")}</option>
+          {free.map((s) => <option key={s.id} value={s.id}>{t("salon.linkTo")} {s.name}</option>)}
+        </select>
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={link} data-approve>{t("salon.approve")}</button>
+        <button type="button" className="btn btn-ghost btn-sm text-bad" disabled={busy} onClick={() => run(() => store.declineJoin(id), t("salon.declined"))} data-decline-join>{t("salon.declineJoin")}</button>
+      </div>
+    </li>
   );
 }
 

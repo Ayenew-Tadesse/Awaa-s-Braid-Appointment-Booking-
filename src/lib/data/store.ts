@@ -43,6 +43,9 @@ export interface Store {
   /** Link a stylist to the login that uses this email (it becomes a stylist account); unlink makes it a customer again. */
   linkLogin(stylistId: string, email: string): Promise<void>;
   unlinkLogin(stylistId: string): Promise<void>;
+  /** Link an account waiting to join the team to a stylist, or turn the request down. */
+  linkProfile(stylistId: string, profileId: string): Promise<void>;
+  declineJoin(profileId: string): Promise<void>;
   /** A stylist marks their own confirmed, started job done (completed) or missed (no_show). */
   markJob(id: string, status: "completed" | "no_show"): Promise<void>;
   /** Take a stylist off the team (refused while they have upcoming appointments). */
