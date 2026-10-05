@@ -247,3 +247,37 @@ select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
 select pg_temp.check(pg_temp.refused($q$update salon set travel_minutes = 0$q$), 'customers cannot change the service area or travel time');
 select pg_temp.back();
 select pg_temp.check(not exists (select 1 from notifications where data::text like '%Test Road%' or data::text like '%Test Lane%'), 'notifications never carry an address');
+
+/* ---------------------------------------------------------------- the team (only the salon manages stylists) */
+insert into stylists (id, name, sort) values ('51000000-0000-0000-0000-000000000003', 'Stylist Three', 3);
+insert into working_hours (stylist_id, weekday, starts, ends) select '51000000-0000-0000-0000-000000000003', d, '09:00', '19:00' from generate_series(0, 6) d;
+update salon set service_zips = array['200', '201', '202', '203', '204', '205', '206', '207', '208', '209'];
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
+create temp table three as select * from book_appointment('5e000000-0000-0000-0000-000000000002', '{}', '51000000-0000-0000-0000-000000000003', pg_temp.at(12, '09:00'));
+grant select on three to authenticated;
+select pg_temp.check(pg_temp.error_of($q$select remove_stylist('51000000-0000-0000-0000-000000000003')$q$) like '%Only the salon%', 'customers cannot remove stylists');
+select pg_temp.check(pg_temp.refused($q$delete from stylists$q$), 'customers cannot delete stylists');
+select pg_temp.check(pg_temp.refused($q$insert into stylists (name) values ('Me')$q$), 'customers cannot add stylists');
+select pg_temp.back();
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select pg_temp.check(pg_temp.error_of($q$select remove_stylist('51000000-0000-0000-0000-000000000003')$q$) like '%upcoming appointments%', 'a stylist with upcoming appointments cannot be removed yet');
+update appointments set stylist_id = '51000000-0000-0000-0000-000000000002' where id = (select id from three);
+select remove_stylist('51000000-0000-0000-0000-000000000003');
+select pg_temp.check((select removed_at is not null and not active from stylists where id = '51000000-0000-0000-0000-000000000003'), 'once their appointments are moved, the salon removes the stylist');
+select pg_temp.check(not exists (select 1 from working_hours where stylist_id = '51000000-0000-0000-0000-000000000003'), 'a removed stylist has no working hours');
+select pg_temp.check(pg_temp.error_of($q$update stylists set active = true where id = '51000000-0000-0000-0000-000000000003'$q$) like '%was removed%', 'a removed stylist cannot be switched back on');
+select pg_temp.back();
+
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000003');
+select pg_temp.check(not exists (select 1 from stylists where id = '51000000-0000-0000-0000-000000000003'), 'customers never see a removed stylist to book');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', '51000000-0000-0000-0000-000000000003', pg_temp.at(13, '09:00'))$q$) like '%no longer free%', 'a removed stylist cannot be booked');
+select pg_temp.back();
+select pg_temp.act_anon();
+select pg_temp.check(not exists (select 1 from stylists where removed_at is not null), 'visitors never see a removed stylist');
+select pg_temp.back();
+-- A customer who was looked after by a stylist still sees that name on their appointment.
+update stylists set removed_at = now(), active = false where id = '51000000-0000-0000-0000-000000000001';
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000001');
+select pg_temp.check(exists (select 1 from stylists where id = '51000000-0000-0000-0000-000000000001'), 'a customer still sees the name of a removed stylist on their own appointments');
+select pg_temp.back();

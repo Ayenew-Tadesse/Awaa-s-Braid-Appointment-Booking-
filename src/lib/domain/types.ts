@@ -18,7 +18,8 @@ export type Style = {
   duration_minutes: number; price: number; active: boolean; sort: number;
 };
 export type StyleOption = { id: string; style_id: string; kind: OptionKind; label: string; extra_minutes: number; extra_price: number; sort: number };
-export type Stylist = { id: string; name: string; bio: string | null; active: boolean; sort: number };
+/** removed_at: taken off the team by the salon (kept so past appointments still show who did them). */
+export type Stylist = { id: string; name: string; bio: string | null; active: boolean; sort: number; removed_at?: string | null };
 /** weekday 0 = Sunday; times "HH:MM" in the salon's time zone. */
 export type WorkingHours = { id: string; stylist_id: string; weekday: number; starts: string; ends: string };
 export type TimeOff = { id: string; stylist_id: string; starts_at: string; ends_at: string; reason: string | null };

@@ -2,6 +2,7 @@
 // Row Level Security (supabase/migrations/20261005000002_security.sql), so the
 // demo behaves like the real thing.
 //   everyone   the salon, active styles and their options, active stylists, working hours
+//              (and a customer, the stylists who did their own appointments)
 //   customer   their own profile and their own appointments
 //   admin      everything, including retired styles, time off and every customer
 import type { Dataset } from "../domain/types";
@@ -17,7 +18,7 @@ export function visibleTo(w: World, profileId: string): Dataset {
     me,
     styles,
     options: w.options.filter((o) => styles.some((s) => s.id === o.style_id)),
-    stylists: w.stylists.filter((s) => admin || s.active),
+    stylists: w.stylists.filter((s) => admin || (s.active && !s.removed_at) || w.appointments.some((a) => a.stylist_id === s.id && a.customer_id === me.id)),
     hours: w.hours,
     timeOff: admin ? w.timeOff : [],
     appointments: w.appointments.filter((a) => admin || a.customer_id === me.id),
