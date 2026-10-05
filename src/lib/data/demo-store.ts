@@ -2,13 +2,14 @@
 // booking reaches the salon admin), saved in localStorage, with the database's
 // rules applied in code (visibility.ts, domain/booking.ts). Clearly a demo:
 // nothing leaves the browser; it starts fresh each day, and "Reset the demo" starts over.
-import type { Appointment, Dataset } from "../domain/types";
+import type { Appointment, AppointmentStatus, Dataset, TimeOff } from "../domain/types";
 import { isOpen } from "../domain/types";
 import { busyFrom, freeSlots, MAX_UPCOMING, optionsProblem, quote, cancelRule, type Busy } from "../domain/booking";
+import { hoursProblem, styleProblem } from "../domain/salon";
 import { localDay } from "../domain/time";
 import { buildWorld, type World } from "../demo/seed";
 import { visibleTo } from "./visibility";
-import type { NewBooking, Store } from "./store";
+import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
 
 const KEY = "awaa_demo_world_v1";
 const ACCOUNT = "awaa_demo_account";
@@ -91,6 +92,80 @@ export class DemoStore implements Store {
     if (rule === "call") throw new Error(`Confirmed appointments can be cancelled up to ${w.salon.cancel_hours} hours before. Please call the salon.`);
     a.status = "cancelled";
     a.cancelled_by = "customer";
+    saveWorld(w);
+  }
+
+  // The salon's tools: admins only, like the database's rules.
+  private asAdmin(): World {
+    const w = loadWorld(this.clock());
+    if (w.profiles.find((p) => p.id === this.profileId)?.role !== "admin") throw new Error("You don't have permission to do that.");
+    return w;
+  }
+
+  async setStatus(id: string, status: Exclude<AppointmentStatus, "pending">) {
+    const w = this.asAdmin();
+    const a = w.appointments.find((x) => x.id === id);
+    if (!a) throw new Error("Appointment not found.");
+    if ((status === "completed" || status === "no_show") && Date.parse(a.starts_at) > this.clock().getTime())
+      throw new Error("An appointment can be marked done or missed once it has started.");
+    a.status = status;
+    if (status === "cancelled") a.cancelled_by = "salon";
+    saveWorld(w);
+  }
+
+  async reschedule(id: string, startsAt: string, stylistId: string) {
+    const now = this.clock();
+    const w = this.asAdmin();
+    const a = w.appointments.find((x) => x.id === id);
+    if (!a) throw new Error("Appointment not found.");
+    const minutes = (Date.parse(a.ends_at) - Date.parse(a.starts_at)) / 60000;
+    const others = w.appointments.filter((x) => x.id !== id);
+    const slot = freeSlots({ salon: w.salon, stylists: w.stylists, hours: w.hours, busy: busyFrom(others, w.timeOff),
+      day: localDay(new Date(startsAt), w.salon.timezone), minutes, now, only: stylistId, forSalon: true })
+      .find((s) => s.startsAt === new Date(startsAt).toISOString());
+    if (!slot) throw new Error("That time is no longer free. Please pick another.");
+    a.starts_at = slot.startsAt; a.ends_at = slot.endsAt; a.stylist_id = stylistId;
+    saveWorld(w);
+  }
+
+  async saveStyle(style: StyleDraft, options: OptionDraft[]): Promise<string> {
+    const w = this.asAdmin();
+    const problem = styleProblem(style);
+    if (problem) throw new Error(problem);
+    const id = style.id ?? uid();
+    const next = { ...style, id, name: style.name.trim(), description: style.description?.trim() || null };
+    const i = w.styles.findIndex((s) => s.id === id);
+    if (i >= 0) w.styles[i] = next; else w.styles.push(next);
+    w.options = [...w.options.filter((o) => o.style_id !== id),
+      ...options.filter((o) => o.label.trim()).map((o, n) => ({ ...o, id: uid(), style_id: id, label: o.label.trim(), sort: n + 1 }))];
+    saveWorld(w);
+    return id;
+  }
+
+  async saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string> {
+    const w = this.asAdmin();
+    if (!stylist.name.trim()) throw new Error("Give the stylist a name.");
+    const problem = hoursProblem(hours);
+    if (problem) throw new Error(problem);
+    const id = stylist.id ?? uid();
+    const next = { ...stylist, id, name: stylist.name.trim(), bio: stylist.bio?.trim() || null };
+    const i = w.stylists.findIndex((s) => s.id === id);
+    if (i >= 0) w.stylists[i] = next; else w.stylists.push(next);
+    w.hours = [...w.hours.filter((h) => h.stylist_id !== id), ...hours.map((h) => ({ ...h, id: uid(), stylist_id: id }))];
+    saveWorld(w);
+    return id;
+  }
+
+  async addTimeOff(t: Omit<TimeOff, "id">) {
+    const w = this.asAdmin();
+    if (!(Date.parse(t.ends_at) > Date.parse(t.starts_at))) throw new Error("Time off must end after it starts.");
+    w.timeOff.push({ ...t, id: uid(), reason: t.reason?.trim() || null });
+    saveWorld(w);
+  }
+
+  async removeTimeOff(id: string) {
+    const w = this.asAdmin();
+    w.timeOff = w.timeOff.filter((x) => x.id !== id);
     saveWorld(w);
   }
 }

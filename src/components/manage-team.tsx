@@ -1,0 +1,178 @@
+"use client";
+// The salon's team: each stylist's working week (one or two blocks a day, so a
+// break can sit between them) and time off. Customers are only offered times
+// inside these hours; the reason for time off stays with the salon.
+import Link from "next/link";
+import { useState } from "react";
+import { useApp } from "@/lib/data/app-context";
+import { errorText, type HoursDraft, type StylistDraft } from "@/lib/data/store";
+import { hoursProblem } from "@/lib/domain/salon";
+import { addDays, at, formatDay, formatTime, localDay } from "@/lib/domain/time";
+import type { Stylist } from "@/lib/domain/types";
+import { useT } from "@/lib/i18n";
+import { Icon } from "./icons";
+import { Sheet } from "./sheet";
+import { useToast } from "./toast";
+import { Card, Empty, PageHeader } from "./ui";
+
+const DAYS = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+
+export function ManageTeam() {
+  const t = useT();
+  const toast = useToast();
+  const { data, store, reload } = useApp();
+  const tz = data.salon.timezone;
+  const [editing, setEditing] = useState<Stylist | "new" | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [now] = useState(() => Date.now());
+  if (data.me.role !== "admin") return <Empty text={t("common.adminOnly")} />;
+  const summary = (id: string) => DAYS.filter((d) => data.hours.some((h) => h.stylist_id === id && h.weekday === d))
+    .map((d) => t(`salon.days.${d}`).slice(0, 3)).join(", ") || t("salon.off");
+  const upcoming = data.timeOff.filter((x) => Date.parse(x.ends_at) > now).sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  const remove = async (id: string) => {
+    try { await store.removeTimeOff(id); await reload(); toast(t("common.saved")); } catch (e) { toast(errorText(e), "error"); }
+  };
+
+  return (
+    <>
+      <Link href="/app/salon" className="muted mb-2 inline-flex items-center gap-1 text-sm"><Icon name="chevron" size={16} className="rotate-180" />{t("salon.title")}</Link>
+      <PageHeader title={t("salon.team")} action={<button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing("new")} data-add-stylist><Icon name="plus" size={16} />{t("salon.addStylist")}</button>} />
+      <ul className="space-y-2.5">
+        {[...data.stylists].sort((a, b) => a.sort - b.sort).map((s) => (
+          <li key={s.id}>
+            <button type="button" onClick={() => setEditing(s)} className="card flex w-full items-center gap-3 p-3.5 text-left hover:border-brand" data-manage-stylist={s.name}>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2"><span className="font-semibold">{s.name}</span>{!s.active && <span className="badge badge-cancelled">{t("salon.hidden")}</span>}</span>
+                <span className="muted block text-sm">{summary(s.id)}</span>
+              </span>
+              <Icon name="chevron" className="text-muted" />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <Card className="mt-5" title={t("salon.timeOff")} action={<button type="button" className="btn btn-ghost btn-sm" onClick={() => setAdding(true)} data-add-time-off><Icon name="plus" size={16} />{t("salon.addTimeOff")}</button>}>
+        {upcoming.length ? (
+          <ul className="divide-y divide-line" data-time-off-list>
+            {upcoming.map((x) => (
+              <li key={x.id} className="flex items-center gap-3 py-2.5">
+                <span className="min-w-0 flex-1 text-sm">
+                  <span className="block font-semibold">{data.stylists.find((s) => s.id === x.stylist_id)?.name}</span>
+                  <span className="muted block">{formatDay(x.starts_at, tz)} {formatTime(x.starts_at, tz)} – {localDay(new Date(x.ends_at), tz) !== localDay(new Date(x.starts_at), tz) ? `${formatDay(x.ends_at, tz)} ` : ""}{formatTime(x.ends_at, tz)}{x.reason ? ` · ${x.reason}` : ""}</span>
+                </span>
+                <button type="button" className="text-sm font-semibold text-bad underline" onClick={() => remove(x.id)} data-remove-time-off>{t("common.remove")}</button>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted text-sm">{t("salon.noTimeOff")}</p>}
+      </Card>
+      {editing && <StylistEditor stylist={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {adding && <TimeOffEditor onClose={() => setAdding(false)} />}
+    </>
+  );
+}
+
+function StylistEditor({ stylist, onClose }: { stylist: Stylist | null; onClose: () => void }) {
+  const t = useT();
+  const toast = useToast();
+  const { data, store, reload } = useApp();
+  const [s, setS] = useState<StylistDraft>(() => stylist ?? { name: "", bio: "", active: true, sort: Math.max(0, ...data.stylists.map((x) => x.sort)) + 1 });
+  const [hours, setHours] = useState<HoursDraft[]>(() => (stylist
+    ? data.hours.filter((h) => h.stylist_id === stylist.id).map(({ weekday, starts, ends }) => ({ weekday, starts, ends }))
+    : [1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, starts: "09:00", ends: "19:00" }))));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const of = (d: number) => hours.map((h, i) => [h, i] as const).filter(([h]) => h.weekday === d).sort(([a], [b]) => a.starts.localeCompare(b.starts));
+  const patch = (i: number, p: Partial<HoursDraft>) => setHours((l) => l.map((h, j) => (j === i ? { ...h, ...p } : h)));
+
+  const save = async () => {
+    if (!s.name.trim()) { setError(t("salon.name")); return; }
+    const problem = hoursProblem(hours);
+    if (problem) { setError(problem); return; }
+    setSaving(true); setError(null);
+    try { await store.saveStylist(s, hours); await reload(); toast(t("common.saved")); onClose(); }
+    catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Sheet title={stylist ? t("salon.editStylist") : t("salon.newStylist")} onClose={onClose}>
+      <div className="space-y-3" data-stylist-editor>
+        <div><label className="label" htmlFor="sy-name">{t("salon.name")}</label><input id="sy-name" className="input" maxLength={80} value={s.name} onChange={(e) => setS({ ...s, name: e.target.value })} /></div>
+        <div><label className="label" htmlFor="sy-bio">{t("salon.bio")}</label><input id="sy-bio" className="input" maxLength={300} value={s.bio ?? ""} onChange={(e) => setS({ ...s, bio: e.target.value })} /></div>
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-[var(--brand)]" checked={s.active} onChange={(e) => setS({ ...s, active: e.target.checked })} />{t("salon.working")}</label>
+        <fieldset>
+          <legend className="label">{t("salon.week")}</legend>
+          <ul className="divide-y divide-line rounded-2xl border border-line">
+            {DAYS.map((d) => {
+              const blocks = of(d);
+              return (
+                <li key={d} className="p-2.5" data-week-row={d}>
+                  <div className="flex items-center gap-2">
+                    <label className="flex min-h-10 flex-1 items-center gap-2 text-sm font-semibold">
+                      <input type="checkbox" className="size-5 accent-[var(--brand)]" checked={blocks.length > 0} data-works={d}
+                        onChange={(e) => setHours((l) => (e.target.checked ? [...l, { weekday: d, starts: "09:00", ends: "19:00" }] : l.filter((h) => h.weekday !== d)))} />
+                      {t(`salon.days.${d}`)}
+                    </label>
+                    {!blocks.length && <span className="muted text-sm">{t("salon.off")}</span>}
+                    {blocks.length === 1 && (
+                      <button type="button" className="text-xs text-brand underline" data-add-break={d}
+                        onClick={() => { const [b, i] = blocks[0]; patch(i, { ends: "13:00" }); setHours((l) => [...l, { weekday: d, starts: "14:00", ends: b.ends > "14:00" ? b.ends : "19:00" }]); }}>{t("salon.addBlock")}</button>
+                    )}
+                  </div>
+                  {blocks.map(([b, i]) => (
+                    <div key={i} className="mt-1.5 flex items-center gap-2 pl-7">
+                      <input type="time" aria-label={`${t(`salon.days.${d}`)} ${t("salon.from")}`} className="input min-h-10 w-auto flex-1" step={1800} value={b.starts} onChange={(e) => patch(i, { starts: e.target.value })} />
+                      <span className="muted text-sm">–</span>
+                      <input type="time" aria-label={`${t(`salon.days.${d}`)} ${t("salon.to")}`} className="input min-h-10 w-auto flex-1" step={1800} value={b.ends} onChange={(e) => patch(i, { ends: e.target.value })} />
+                      {blocks.length > 1 && <button type="button" className="grid size-10 place-items-center rounded-xl text-bad hover:bg-bad-soft" aria-label={t("common.remove")} onClick={() => setHours((l) => l.filter((_, j) => j !== i))}><Icon name="x" size={16} /></button>}
+                    </div>
+                  ))}
+                </li>
+              );
+            })}
+          </ul>
+        </fieldset>
+        {error && <p className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad" role="alert">{error}</p>}
+        <button type="button" className="btn btn-primary w-full" disabled={saving} onClick={save} data-save-stylist>{saving ? t("common.saving") : t("common.save")}</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function TimeOffEditor({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const toast = useToast();
+  const { data, store, reload } = useApp();
+  const tz = data.salon.timezone;
+  const [today] = useState(() => localDay(new Date(), tz));
+  const [f, setF] = useState({ stylist: data.stylists.find((s) => s.active)?.id ?? "", day: addDays(today, 1), allDay: true, from: "09:00", to: "13:00", reason: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const starts = at(f.day, f.allDay ? "00:00" : f.from, tz), ends = f.allDay ? at(addDays(f.day, 1), "00:00", tz) : at(f.day, f.to, tz);
+    setSaving(true); setError(null);
+    try { await store.addTimeOff({ stylist_id: f.stylist, starts_at: starts.toISOString(), ends_at: ends.toISOString(), reason: f.reason }); await reload(); toast(t("common.saved")); onClose(); }
+    catch (e) { setError(errorText(e)); }
+    finally { setSaving(false); }
+  };
+  return (
+    <Sheet title={t("salon.addTimeOff")} onClose={onClose}>
+      <div className="space-y-3" data-time-off-editor>
+        <div><label className="label" htmlFor="to-st">{t("sheet.stylist")}</label>
+          <select id="to-st" className="input" value={f.stylist} onChange={(e) => setF({ ...f, stylist: e.target.value })}>{data.stylists.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+        <div><label className="label" htmlFor="to-day">{t("book.day")}</label><input id="to-day" type="date" className="input" min={today} value={f.day} onChange={(e) => setF({ ...f, day: e.target.value })} /></div>
+        <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="size-5 accent-[var(--brand)]" checked={f.allDay} onChange={(e) => setF({ ...f, allDay: e.target.checked })} data-all-day />{t("salon.allDay")}</label>
+        {!f.allDay && (
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="label" htmlFor="to-from">{t("salon.from")}</label><input id="to-from" type="time" step={1800} className="input" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} /></div>
+            <div><label className="label" htmlFor="to-to">{t("salon.to")}</label><input id="to-to" type="time" step={1800} className="input" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></div>
+          </div>
+        )}
+        <div><label className="label" htmlFor="to-why">{t("salon.reason")}</label><input id="to-why" className="input" maxLength={200} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></div>
+        {error && <p className="rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad" role="alert">{error}</p>}
+        <button type="button" className="btn btn-primary w-full" disabled={saving || !f.stylist || !f.day} onClick={save} data-save-time-off>{saving ? t("common.saving") : t("common.save")}</button>
+      </div>
+    </Sheet>
+  );
+}

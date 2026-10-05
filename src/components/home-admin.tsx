@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useApp } from "@/lib/data/app-context";
 import { addDays, at, formatDay, formatMoney, localDay, weekdayOf } from "@/lib/domain/time";
-import { isOpen } from "@/lib/domain/types";
+import { isOpen, type Appointment } from "@/lib/domain/types";
 import { useT } from "@/lib/i18n";
 import { AppointmentCard } from "./appointment-card";
+import { AppointmentSheet } from "./appointment-sheet";
 import { Card, Empty, Stat } from "./ui";
 
 export function AdminHome() {
@@ -13,6 +14,7 @@ export function AdminHome() {
   const { data } = useApp();
   const tz = data.salon.timezone;
   const [now] = useState(() => new Date()); // when the screen opened
+  const [open, setOpen] = useState<Appointment | null>(null);
   const today = localDay(now, tz);
   const dayOf = (iso: string) => localDay(new Date(iso), tz);
   // The week runs Monday to Sunday.
@@ -39,14 +41,15 @@ export function AdminHome() {
       </div>
       <Card title={t("admin.schedule")}>
         <div className="space-y-2.5" data-today-list>
-          {todays.length ? todays.map((a) => <AppointmentCard key={a.id} a={a} data={data} showCustomer />) : <Empty text={t("admin.empty")} />}
+          {todays.length ? todays.map((a) => <AppointmentCard key={a.id} a={a} data={data} showCustomer onOpen={setOpen} />) : <Empty text={t("admin.empty")} />}
         </div>
       </Card>
       <Card title={t("admin.newRequests")}>
         <div className="space-y-2.5" data-requests>
-          {requests.length ? requests.map((a) => <AppointmentCard key={a.id} a={a} data={data} showCustomer />) : <Empty icon="check" text={t("admin.noRequests")} />}
+          {requests.length ? requests.map((a) => <AppointmentCard key={a.id} a={a} data={data} showCustomer onOpen={setOpen} />) : <Empty icon="check" text={t("admin.noRequests")} />}
         </div>
       </Card>
+      {open && <AppointmentSheet appointment={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }

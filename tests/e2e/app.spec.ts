@@ -39,7 +39,7 @@ test("the salon admin sees today's diary, requests and the week", async ({ page 
   await expect(page.locator("[data-today-list] [data-appointment]").first()).toBeVisible();
   await expect(page.locator("[data-requests] [data-appointment]").first()).toBeVisible();
   // The salon sees who is coming, with their phone number.
-  await expect(page.locator("[data-requests] a[href^='tel:']").first()).toBeVisible();
+  await expect(page.locator("[data-requests] [data-appointment]").first()).toContainText(/\(\d{3}\) 555-01\d\d/);
   await noSideScroll(page);
 });
 

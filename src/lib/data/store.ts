@@ -1,11 +1,15 @@
 // What the screens can ask for and do. Two stores implement it:
 //   SupabaseStore: the real salon (Row Level Security decides what you see);
 //   DemoStore: the demo salon kept in this browser, with the same rules (visibility.ts).
-// The salon's tools (confirm, reschedule, manage styles and hours) arrive in milestone 3.
 import type { Busy } from "../domain/booking";
-import type { Appointment, Dataset } from "../domain/types";
+import type { Appointment, AppointmentStatus, Dataset, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 
 export type NewBooking = { styleId: string; optionIds: string[]; stylistId: string | null; startsAt: string; note: string };
+/** A style as the salon edits it (no id = a new style), with its options in order. */
+export type StyleDraft = Omit<Style, "id"> & { id?: string };
+export type OptionDraft = Pick<StyleOption, "kind" | "label" | "extra_minutes" | "extra_price">;
+export type StylistDraft = Omit<Stylist, "id"> & { id?: string };
+export type HoursDraft = Pick<WorkingHours, "weekday" | "starts" | "ends">;
 
 export interface Store {
   mode: "demo" | "supabase";
@@ -18,6 +22,18 @@ export interface Store {
   book(b: NewBooking): Promise<Appointment>;
   /** Cancel your own appointment (a waiting request any time; a confirmed one up to the salon's notice). */
   cancel(id: string): Promise<void>;
+
+  // The salon (admins only; the database refuses everyone else).
+  /** Confirm, decline or cancel (cancelled), mark done (completed) or missed (no_show). */
+  setStatus(id: string, status: Exclude<AppointmentStatus, "pending">): Promise<void>;
+  /** Move an appointment to another free time and/or stylist (same length). */
+  reschedule(id: string, startsAt: string, stylistId: string): Promise<void>;
+  /** Add or change a style and replace its options; returns its id. */
+  saveStyle(style: StyleDraft, options: OptionDraft[]): Promise<string>;
+  /** Add or change a stylist and replace their week; returns their id. */
+  saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string>;
+  addTimeOff(t: Omit<TimeOff, "id">): Promise<void>;
+  removeTimeOff(id: string): Promise<void>;
 }
 
 /** A friendly message for any store error (database refusals, network, validation). */

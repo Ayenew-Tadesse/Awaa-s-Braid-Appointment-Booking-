@@ -44,11 +44,13 @@ export function busyFrom(appointments: Appointment[], timeOff: Busy[]): Busy[] {
 export function freeSlots(args: {
   salon: Salon; stylists: Stylist[]; hours: WorkingHours[]; busy: Busy[];
   day: string; minutes: number; now: Date; only?: string | null;
+  /** The salon moving an appointment: no notice or booking window, just not in the past. */
+  forSalon?: boolean;
 }): Slot[] {
-  const { salon, hours, busy, day, minutes, now, only } = args;
+  const { salon, hours, busy, day, minutes, now, only, forSalon } = args;
   const tz = salon.timezone;
-  const earliest = now.getTime() + salon.min_notice_hours * 3600000;
-  const latest = now.getTime() + salon.booking_window_days * 86400000;
+  const earliest = now.getTime() + (forSalon ? 0 : salon.min_notice_hours * 3600000);
+  const latest = forSalon ? Infinity : now.getTime() + salon.booking_window_days * 86400000;
   const stylists = args.stylists.filter((s) => s.active && (!only || s.id === only)).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
   const found = new Map<number, Slot>();
   for (const st of stylists) {

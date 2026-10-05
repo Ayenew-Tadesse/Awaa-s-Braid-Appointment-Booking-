@@ -1,10 +1,10 @@
 // The real salon, through Supabase. Every query runs as the signed-in person,
 // so Row Level Security decides what comes back (a customer gets only their own
 // appointments and profile, whatever this code asks for).
-import type { Appointment, Dataset, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
+import type { Appointment, AppointmentStatus, Dataset, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { supabase } from "../supabase/client";
 import type { Busy } from "../domain/booking";
-import type { NewBooking, Store } from "./store";
+import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
 
 async function rows<T>(q: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const { data, error } = await q;
@@ -63,6 +63,51 @@ export class SupabaseStore implements Store {
 
   async cancel(id: string) {
     const { error } = await supabase().rpc("cancel_appointment", { p_id: id });
+    if (error) throw new Error(error.message);
+  }
+
+  // The salon's tools: plain updates, which Row Level Security allows only for admins.
+  async setStatus(id: string, status: Exclude<AppointmentStatus, "pending">) {
+    const { error } = await supabase().from("appointments").update({ status, ...(status === "cancelled" ? { cancelled_by: "salon" } : {}) }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async reschedule(id: string, startsAt: string, stylistId: string) {
+    const sb = supabase();
+    const { data, error } = await sb.from("appointments").select("starts_at, ends_at").eq("id", id).single();
+    if (error) throw new Error(error.message);
+    const minutes = (Date.parse(data.ends_at) - Date.parse(data.starts_at)) / 60000;
+    const ends = new Date(Date.parse(startsAt) + minutes * 60000).toISOString();
+    // The database refuses an overlap for that stylist (appointments_no_overlap).
+    const { error: e } = await sb.from("appointments").update({ starts_at: startsAt, ends_at: ends, stylist_id: stylistId }).eq("id", id);
+    if (e) throw new Error(/no_overlap/.test(e.message) ? "That time is no longer free. Please pick another." : e.message);
+  }
+
+  async saveStyle(style: StyleDraft, options: OptionDraft[]): Promise<string> {
+    const sb = supabase();
+    const { data, error } = await sb.from("styles").upsert(style).select("id").single();
+    if (error) throw new Error(error.message);
+    const { error: e } = await sb.rpc("save_style_options", { p_style: data.id, p_options: options.filter((o) => o.label.trim()) });
+    if (e) throw new Error(e.message);
+    return data.id as string;
+  }
+
+  async saveStylist(stylist: StylistDraft, hours: HoursDraft[]): Promise<string> {
+    const sb = supabase();
+    const { data, error } = await sb.from("stylists").upsert(stylist).select("id").single();
+    if (error) throw new Error(error.message);
+    const { error: e } = await sb.rpc("save_working_hours", { p_stylist: data.id, p_hours: hours });
+    if (e) throw new Error(e.message);
+    return data.id as string;
+  }
+
+  async addTimeOff(t: Omit<TimeOff, "id">) {
+    const { error } = await supabase().from("time_off").insert(t);
+    if (error) throw new Error(error.message);
+  }
+
+  async removeTimeOff(id: string) {
+    const { error } = await supabase().from("time_off").delete().eq("id", id);
     if (error) throw new Error(error.message);
   }
 }
