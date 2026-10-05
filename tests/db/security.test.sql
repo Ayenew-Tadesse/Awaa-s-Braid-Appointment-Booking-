@@ -281,3 +281,62 @@ update stylists set removed_at = now(), active = false where id = '51000000-0000
 select pg_temp.act_as('c0000000-0000-0000-0000-000000000001');
 select pg_temp.check(exists (select 1 from stylists where id = '51000000-0000-0000-0000-000000000001'), 'a customer still sees the name of a removed stylist on their own appointments');
 select pg_temp.back();
+
+/* ---------------------------------------------------------------- stylist logins */
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('d0000000-0000-0000-0000-000000000001', 'Selam@Test', '{"full_name":"Selam Stylist","role":"stylist"}');
+select pg_temp.check((select role from profiles where id = 'd0000000-0000-0000-0000-000000000001') = 'customer', 'signing up never makes anyone a stylist');
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_login('51000000-0000-0000-0000-000000000002', 'selam@test')$q$) like '%Only the salon%', 'customers cannot link a stylist login');
+select pg_temp.back();
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_login('51000000-0000-0000-0000-000000000002', 'nobody@test')$q$) like '%sign up first%', 'linking needs an account with that email');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_login('51000000-0000-0000-0000-000000000002', 'owner@test')$q$) like '%admin account%', 'an admin account cannot become a stylist');
+select link_stylist_login('51000000-0000-0000-0000-000000000002', ' selam@test ');
+select pg_temp.check((select role from profiles where id = 'd0000000-0000-0000-0000-000000000001') = 'stylist', 'the salon links a login: it becomes a stylist account');
+-- A second stylist and a confirmed job for Selam, to see what she hears.
+insert into stylists (id, name, sort) values ('51000000-0000-0000-0000-000000000004', 'Stylist Four', 4);
+insert into working_hours (stylist_id, weekday, starts, ends) select '51000000-0000-0000-0000-000000000004', d, '09:00', '19:00' from generate_series(0, 6) d;
+update appointments set status = 'confirmed' where id = (select id from three);
+select pg_temp.back();
+select pg_temp.check(exists (select 1 from notifications where user_id = 'd0000000-0000-0000-0000-000000000001' and kind = 'job_assigned'), 'a stylist hears about a job confirmed for them');
+-- A job of hers from last month, to mark done.
+insert into appointments (id, customer_id, stylist_id, style_id, style_name, starts_at, ends_at, price, status)
+  values ('ab000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000003', '51000000-0000-0000-0000-000000000002', '5e000000-0000-0000-0000-000000000002', 'Cornrows',
+    now() - interval '30 days', now() - interval '30 days' + interval '90 minutes', 800, 'confirmed');
+create temp table mine as select id, customer_id from appointments where stylist_id = '51000000-0000-0000-0000-000000000002';
+grant select on mine to authenticated;
+
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000001');
+select pg_temp.check((select count(*) from appointments) = (select count(*) from mine) and (select count(*) from mine) > 1, 'a stylist sees exactly her own jobs');
+select pg_temp.check((select count(*) from profiles) = 1 + (select count(distinct customer_id) from mine), 'and only the customers on them (plus herself)');
+select pg_temp.check(not exists (select 1 from profiles where id = 'c0000000-0000-0000-0000-000000000001'), 'a stylist never sees other customers');
+select pg_temp.check((select visit_address from appointments where id = (select id from three)) is not null, 'a stylist sees the address of her own job');
+select pg_temp.check((select count(*) from time_off) >= 1 and not exists (select 1 from time_off where stylist_id <> '51000000-0000-0000-0000-000000000002'), 'a stylist sees only her own time off');
+select pg_temp.check(pg_temp.refused($q$update appointments set status = 'cancelled'$q$), 'a stylist cannot change jobs directly');
+select pg_temp.check(pg_temp.refused($q$update working_hours set ends = '23:00'$q$), 'a stylist cannot change her hours');
+select pg_temp.check(pg_temp.refused($q$insert into time_off (stylist_id, starts_at, ends_at) values ('51000000-0000-0000-0000-000000000002', now(), now() + interval '1 hour')$q$), 'a stylist cannot add time off');
+select pg_temp.check(pg_temp.error_of($q$select mark_job((select id from three), 'completed')$q$) like '%once it has started%', 'a job is marked done only once it has started');
+select pg_temp.check(pg_temp.error_of($q$select mark_job((select id from three), 'cancelled')$q$) like '%done or missed%', 'a stylist can only mark done or missed');
+select pg_temp.check((select status from mark_job('ab000000-0000-0000-0000-000000000001', 'completed')) = 'completed', 'a stylist marks her own started job done');
+select pg_temp.check(pg_temp.error_of($q$select mark_job((select id from visit), 'completed')$q$) like '%not found%', 'a stylist cannot mark someone else''s job');
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_login('51000000-0000-0000-0000-000000000004', 'selam@test')$q$) like '%Only the salon%', 'a stylist cannot link logins');
+select pg_temp.check(pg_temp.error_of($q$select remove_stylist('51000000-0000-0000-0000-000000000004')$q$) like '%Only the salon%', 'a stylist cannot remove stylists');
+select pg_temp.check(pg_temp.refused($q$update profiles set role = 'admin' where id = 'd0000000-0000-0000-0000-000000000001'$q$), 'a stylist cannot make herself admin');
+select pg_temp.back();
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+update appointments set stylist_id = '51000000-0000-0000-0000-000000000004' where id = (select id from three);
+select pg_temp.check(pg_temp.error_of($q$select link_stylist_login('51000000-0000-0000-0000-000000000004', 'selam@test')$q$) like '%another stylist%', 'one login belongs to one stylist');
+select pg_temp.back();
+select pg_temp.check(exists (select 1 from notifications where user_id = 'd0000000-0000-0000-0000-000000000001' and kind = 'job_removed'), 'a stylist hears when a job moves to someone else');
+select pg_temp.check(not exists (select 1 from notifications where user_id = 'd0000000-0000-0000-0000-000000000001' and data::text like '%Test%'), 'her notifications carry no address');
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select unlink_stylist_login('51000000-0000-0000-0000-000000000002');
+select pg_temp.back();
+select pg_temp.check((select role from profiles where id = 'd0000000-0000-0000-0000-000000000001') = 'customer', 'unlinking makes the login a customer again');
+select pg_temp.act_as('d0000000-0000-0000-0000-000000000001');
+select pg_temp.check((select count(*) from appointments) = 0, 'and it sees no jobs any more');
+select pg_temp.back();

@@ -22,6 +22,8 @@ export type World = {
   appointments: Appointment[];
   notifications: Notification[];
   accounts: DemoAccount[];
+  /** Sign-in emails of everyone with a login (what link_stylist_login looks up). */
+  emails: Record<string, string>;
 };
 
 /** A notification about an appointment, as the database's trigger makes it (20261008000001_notifications.sql). */
@@ -156,14 +158,22 @@ export function buildWorld(now = new Date()): World {
   while (STYLISTS[1][2].includes(weekdayOf(away))) away = addDays(away, 1);
   const timeOff: TimeOff[] = [{ id: id("70", 1), stylist_id: stylists[1].id, starts_at: at(away, "09:00", TZ).toISOString(), ends_at: at(away, "19:00", TZ).toISOString(), reason: "Training day" }];
 
+  // Logins for stylists: Selam's is linked (the demo stylist account); Hiwot has
+  // signed up but the salon hasn't linked her yet (try "Link a login").
+  const selamLogin: Profile = { id: id("d0", 1), role: "stylist", full_name: "Selam Tesfaye", phone: "(202) 555-0111", address: null, city: null, zip: null, created_at: created };
+  const hiwotLogin: Profile = { id: id("d0", 2), role: "customer", full_name: "Hiwot Desta", phone: "(301) 555-0112", address: null, city: null, zip: null, created_at: created };
+  stylists[0].profile_id = selamLogin.id;
+
   // What the notification trigger would have sent: the salon heard about each open
-  // request; customers heard about their confirmed ones. A few already read.
-  const profiles = [admin, ...customers];
+  // request; customers heard about their confirmed ones, and Selam about her
+  // confirmed jobs. A few already read.
+  const profiles = [admin, ...customers, selamLogin, hiwotLogin];
   const notifications: Notification[] = [];
   appointments.forEach((a, i) => {
     const when = new Date(Math.min(now.getTime() - (i + 1) * 3600000, Date.parse(a.starts_at) - 86400000)).toISOString();
     if (a.status === "pending") notifications.push(noteFor({ profiles, stylists }, admin.id, "booked", a, id("a2", i + 1), when));
     if (a.status === "confirmed" && Date.parse(a.starts_at) > now.getTime()) notifications.push(noteFor({ profiles, stylists }, a.customer_id, "confirmed", a, id("a3", i + 1), when));
+    if (a.status === "confirmed" && Date.parse(a.starts_at) > now.getTime() && a.stylist_id === stylists[0].id) notifications.push(noteFor({ profiles, stylists }, selamLogin.id, "job_assigned", a, id("a4", i + 1), when));
   });
   // Everyone's two newest are still unread.
   for (const p of profiles) notifications.filter((n) => n.user_id === p.id).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(2).forEach((n) => { n.read_at = n.created_at; });
@@ -173,6 +183,11 @@ export function buildWorld(now = new Date()): World {
     accounts: [
       { email: "customer@example.com", profile_id: customers[0].id, label: "Customer" },
       { email: "admin@example.com", profile_id: admin.id, label: "Salon admin" },
+      { email: "stylist@example.com", profile_id: selamLogin.id, label: "Stylist" },
     ],
+    emails: Object.fromEntries([
+      [customers[0].id, "customer@example.com"], [admin.id, "admin@example.com"], [selamLogin.id, "stylist@example.com"], [hiwotLogin.id, "hiwot@example.com"],
+      ...customers.slice(1).map((c) => [c.id, `${c.full_name.split(" ")[0].toLowerCase()}@example.com`]),
+    ]),
   };
 }

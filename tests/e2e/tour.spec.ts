@@ -1,26 +1,26 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// The guided demo tour: eight stops, customer then salon, at every width.
+// The guided demo tour: nine stops, customer, stylist, then salon, at every width.
 const card = (page: Page) => page.getByRole("dialog", { name: /./ }).filter({ has: page.locator("[data-tour-next]") });
 const stepLine = (page: Page) => card(page).locator("p").first();
 
 test("the tour walks through the customer's and the salon's side, and ends", async ({ page }) => {
   await page.goto("/login");
   await page.click("[data-tour-start]");
-  await expect(stepLine(page)).toHaveText(/Step 1 of 8 · Customer/);
+  await expect(stepLine(page)).toHaveText(/Step 1 of 9 · Customer/);
   await expect(page.locator("#tour-title")).toHaveText("Your next appointment");
   await expect(page.locator("[data-tour-highlight]")).toBeVisible();
   await expect(page.locator("[data-tour-back]")).toBeDisabled();
   await expect(page.locator("[data-tour-next]")).toBeFocused();
 
   const expected = [
-    ["2", "Customer", "/app/book"], ["3", "Customer", "/app/notifications"],
-    ["4", "Salon admin", "/app"], ["5", "Salon admin", "/app/calendar"], ["6", "Salon admin", "/app/salon/styles"],
-    ["7", "Salon admin", "/app/salon/team"], ["8", "Salon admin", "/app/salon/reports"],
+    ["2", "Customer", "/app/book"], ["3", "Customer", "/app/notifications"], ["4", "Stylist", "/app"],
+    ["5", "Salon admin", "/app"], ["6", "Salon admin", "/app/calendar"], ["7", "Salon admin", "/app/salon/styles"],
+    ["8", "Salon admin", "/app/salon/team"], ["9", "Salon admin", "/app/salon/reports"],
   ];
   for (const [n, role, path] of expected) {
     await page.click("[data-tour-next]");
-    await expect(stepLine(page)).toHaveText(new RegExp(`Step ${n} of 8 · ${role}`));
+    await expect(stepLine(page)).toHaveText(new RegExp(`Step ${n} of 9 · ${role}`));
     await expect(page).toHaveURL(new RegExp(`${path.replace(/\//g, "\\/")}$`));
     await expect(page.locator("[data-tour-highlight]")).toBeVisible();
     // The card is always fully on screen, and nothing scrolls sideways.
@@ -30,7 +30,7 @@ test("the tour walks through the customer's and the salon's side, and ends", asy
   }
   await expect(page.locator("[data-tour-next]")).toHaveText("Finish");
   await page.click("[data-tour-back]");
-  await expect(stepLine(page)).toHaveText(/Step 7 of 8/);
+  await expect(stepLine(page)).toHaveText(/Step 8 of 9/);
   await page.click("[data-tour-next]");
   await page.click("[data-tour-next]");
   await expect(page.locator("[data-tour-overlay]")).toHaveCount(0);
@@ -40,12 +40,12 @@ test("the tour walks through the customer's and the salon's side, and ends", asy
 test("the tour can be ended early, or with Escape", async ({ page }) => {
   await page.goto("/login");
   await page.click("[data-tour-start]");
-  await expect(stepLine(page)).toHaveText(/Step 1 of 8/);
+  await expect(stepLine(page)).toHaveText(/Step 1 of 9/);
   await page.click("[data-tour-end]");
   await expect(page.locator("[data-tour-overlay]")).toHaveCount(0);
   await page.goto("/login");
   await page.click("[data-tour-start]");
-  await expect(stepLine(page)).toHaveText(/Step 1 of 8/);
+  await expect(stepLine(page)).toHaveText(/Step 1 of 9/);
   await page.keyboard.press("Escape");
   await expect(page.locator("[data-tour-overlay]")).toHaveCount(0);
 });
@@ -56,5 +56,5 @@ test("the tour speaks Amharic", async ({ page }, info) => {
   await page.getByRole("button", { name: "አማርኛ" }).click();
   await page.click("[data-tour-start]");
   await expect(page.locator("#tour-title")).toHaveText("የሚቀጥለው ቀጠሮዎ");
-  await expect(stepLine(page)).toHaveText(/ደረጃ 1 ከ8 · ደንበኛ/);
+  await expect(stepLine(page)).toHaveText(/ደረጃ 1 ከ9 · ደንበኛ/);
 });

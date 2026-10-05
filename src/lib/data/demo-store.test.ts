@@ -80,7 +80,7 @@ describe("booking in the demo (the database's rules)", () => {
     const tomorrow = w.appointments.find((a) => a.customer_id === customer() && a.status === "confirmed")!;
     tomorrow.starts_at = new Date(NOW.getTime() + 10 * 3600000).toISOString();
     tomorrow.ends_at = new Date(NOW.getTime() + 14 * 3600000).toISOString();
-    localStorage.setItem("awaa_demo_world_v2", JSON.stringify(w));
+    localStorage.setItem("awaa_demo_world_v3", JSON.stringify(w));
     await expect(new DemoStore(customer(), clock).cancel(tomorrow.id)).rejects.toThrow("call the salon");
   });
 
@@ -147,6 +147,40 @@ describe("the salon's tools in the demo (admins only)", () => {
     expect((await new DemoStore(w.profiles[3].id, clock).load()).stylists.some((x) => x.id === hiwot.id)).toBe(false);
     await expect(store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: hiwot.id, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("no longer free");
+  });
+
+  it("stylist logins: the salon links one; the stylist sees only their own jobs and marks them", async () => {
+    const s = new DemoStore(admin(), clock);
+    const w = w0();
+    const selam = w.accounts[2].profile_id, hiwot = w.stylists[2];
+    // Selam (linked in the demo) sees her jobs, their customers, and nobody else.
+    const mine = await new DemoStore(selam, clock).load();
+    const selamId = w.stylists[0].id;
+    expect(mine.appointments.length).toBeGreaterThan(0);
+    expect(mine.appointments.every((a) => a.stylist_id === selamId)).toBe(true);
+    expect(mine.people.every((p) => p.id === selam || mine.appointments.some((a) => a.customer_id === p.id))).toBe(true);
+    expect(mine.timeOff.every((x) => x.stylist_id === selamId)).toBe(true);
+    // She marks a started job; not a future one, not another stylist's.
+    const future = mine.appointments.find((a) => a.status === "confirmed" && Date.parse(a.starts_at) > NOW.getTime())!;
+    await expect(new DemoStore(selam, clock).markJob(future.id, "completed")).rejects.toThrow("once it has started");
+    const other = w.appointments.find((a) => a.stylist_id !== selamId)!;
+    await expect(new DemoStore(selam, clock).markJob(other.id, "completed")).rejects.toThrow("not found");
+    await expect(new DemoStore(selam, clock).setStatus(future.id, "cancelled")).rejects.toThrow("permission");
+    // Linking Hiwot's account: only the salon, only an existing email.
+    await expect(new DemoStore(customer(), clock).linkLogin(hiwot.id, "hiwot@example.com")).rejects.toThrow("permission");
+    await expect(s.linkLogin(hiwot.id, "nobody@example.com")).rejects.toThrow("sign up first");
+    await expect(s.linkLogin(hiwot.id, "admin@example.com")).rejects.toThrow("admin account");
+    await expect(s.linkLogin(hiwot.id, "stylist@example.com")).rejects.toThrow("another stylist");
+    await s.linkLogin(hiwot.id, " HIWOT@example.com ");
+    const login = w0().stylists[2].profile_id!;
+    expect(w0().profiles.find((p) => p.id === login)!.role).toBe("stylist");
+    // Confirming one of her requests tells her.
+    const req = w0().appointments.find((a) => a.stylist_id === hiwot.id && a.status === "pending" && Date.parse(a.starts_at) > NOW.getTime())!;
+    await s.setStatus(req.id, "confirmed");
+    expect((await new DemoStore(login, clock).load()).notifications.some((n) => n.kind === "job_assigned")).toBe(true);
+    await s.unlinkLogin(hiwot.id);
+    expect(w0().profiles.find((p) => p.id === login)!.role).toBe("customer");
+    expect((await new DemoStore(login, clock).load()).appointments).toEqual([]);
   });
 
   it("a day's jobs read as a message for the stylist", () => {

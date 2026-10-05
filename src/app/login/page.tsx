@@ -14,8 +14,9 @@ import { useT } from "@/lib/i18n";
 import { supabaseConfigured } from "@/lib/supabase/config";
 import { TOUR_ACCOUNTS, setTourStop } from "@/lib/demo/tour";
 
-const DEMO: { email: string; role: "customer" | "admin"; icon: IconName }[] = [
+const DEMO: { email: string; role: "customer" | "admin" | "stylist"; icon: IconName }[] = [
   { email: "customer@example.com", role: "customer", icon: "user" },
+  { email: "stylist@example.com", role: "stylist", icon: "pin" },
   { email: "admin@example.com", role: "admin", icon: "scissors" },
 ];
 

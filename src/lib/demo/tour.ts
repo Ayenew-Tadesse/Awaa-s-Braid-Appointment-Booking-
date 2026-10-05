@@ -1,4 +1,4 @@
-// The guided demo tour: eight stops, the customer's side then the salon's. Each
+// The guided demo tour: nine stops, the customer's side, a stylist's, then the salon's. Each
 // stop says which demo account to be, which page to show and what to point at
 // (a CSS selector). The words are in the dictionaries under tour.<key>.title /
 // tour.<key>.body. Where you are in the tour lives in sessionStorage, so it
@@ -11,6 +11,7 @@ export const TOUR: TourStop[] = [
   { role: "customer", path: "/app", target: "[data-next]", key: "next" },
   { role: "customer", path: "/app/book", target: "[data-booking] ul", key: "book" },
   { role: "customer", path: "/app/notifications", target: "#main ul", key: "notes" },
+  { role: "stylist", path: "/app", target: "[data-job]", key: "jobs" },
   { role: "admin", path: "/app", target: "[data-requests]", key: "requests" },
   { role: "admin", path: "/app/calendar", target: "[data-cal-stylist]", key: "calendar" },
   { role: "admin", path: "/app/salon/styles", target: "[data-manage-style]", key: "styles" },
@@ -19,13 +20,13 @@ export const TOUR: TourStop[] = [
 ];
 
 /** The demo account each role uses on the tour. */
-export const TOUR_ACCOUNTS: Record<Role, string> = { customer: "customer@example.com", admin: "admin@example.com" };
+export const TOUR_ACCOUNTS: Record<Role, string> = { customer: "customer@example.com", stylist: "stylist@example.com", admin: "admin@example.com" };
 
 const KEY = "awaa_tour";
 const listeners = new Set<() => void>();
 export const subscribeTour = (f: () => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
 
-/** The stop the tour is on (0–7), or null when there's no tour. */
+/** The stop the tour is on (0–8), or null when there's no tour. */
 export function tourStop(): number | null {
   try {
     const v = sessionStorage.getItem(KEY);

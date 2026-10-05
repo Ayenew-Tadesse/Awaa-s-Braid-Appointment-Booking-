@@ -40,9 +40,10 @@ kept in your browser.
   - An hour (changeable) is kept free after each visit so the stylist can get to the next home. The database enforces it too.
   - The salon sees the address with an "Open in Maps" link.
 
-- **The team, run by the admin:** stylists don't sign in; only the admin adds, edits, pauses or removes them.
+- **The team, run by the admin:** only the admin adds, edits, pauses or removes stylists and links their logins.
   - Each stylist has a schedule page: their working week (with "Copy Monday to Tuesday–Friday"), time off, and upcoming jobs with addresses and map links.
   - "Send to stylist" shares a day's jobs (times, customers' numbers, addresses and map links) through the phone's share menu.
+  - **Stylist logins:** a stylist signs up like anyone; the admin links that account under Login on the stylist's page. The stylist then has Jobs · Week · Account: their own jobs (customer and phone, address and map link, note, what to collect), their hours and time off, and notifications when a job is assigned, moved or taken off their list. They mark a job done or missed once it has started; everything else stays with the admin. Try it with "Continue as Stylist" in the demo.
   - Removing a stylist: first move their upcoming appointments ("Move all" to a stylist who is free at the same times; customers are told). They're then off the team and never offered for booking, while past appointments and reports keep their name.
 
 ## Security
@@ -50,7 +51,8 @@ kept in your browser.
 - Every table has Row Level Security. A customer only ever sees their own profile and appointments; nobody sees another customer's name, phone or bookings.
 - Anyone who signs up is a customer. Only the salon (an admin) can make someone an admin.
 - Customers can't write appointments directly: booking goes through `book_appointment`, which works out the time and price from the style on the server and checks the hours, notice, booking window, time off and the 30-minute grid. The database itself refuses two open appointments that overlap for the same stylist.
-- A customer's home address is seen only by them and the salon: never in `busy_times`, never in notifications, never by another customer.
+- A stylist sees only their own jobs and the customers on them (`private.my_stylist()`); they can't change bookings, hours or the team.
+- A customer's home address is seen only by them, the salon and the stylist doing that job: never in `busy_times`, never in notifications, never by another customer.
 - The website only has the public (anon) key. There is no service-role key anywhere in this app.
 
 ## Run it

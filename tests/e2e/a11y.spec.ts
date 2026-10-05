@@ -44,6 +44,16 @@ for (const scheme of ["light", "dark"] as const) {
       }
     });
 
+    test("stylist screens", async ({ page }) => {
+      await page.goto("/login");
+      await page.click("[data-demo=stylist]");
+      await page.waitForSelector("[data-jobs]");
+      await scan(page, "stylist jobs");
+      await page.goto("/app/week");
+      await page.waitForSelector("[data-my-week]");
+      await scan(page, "stylist week");
+    });
+
     test("salon screens", async ({ page }) => {
       await page.goto("/login");
       await page.click("[data-demo=admin]");

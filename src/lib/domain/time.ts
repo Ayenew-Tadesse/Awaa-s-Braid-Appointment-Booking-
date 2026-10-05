@@ -63,3 +63,7 @@ export function formatMoney(amount: number, currency = "USD"): string {
   const cents = Math.round(amount * 100) % 100 !== 0;
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 }).format(amount);
 }
+
+/** "09:00" (a working-hours time) written like every other time in the app: "9:00 AM". */
+export const clockLabel = (hhmm: string) =>
+  new Intl.DateTimeFormat(getDateLocale(), { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(new Date(`2000-01-01T${hhmm}:00Z`));
