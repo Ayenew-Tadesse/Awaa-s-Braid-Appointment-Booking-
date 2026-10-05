@@ -8,8 +8,11 @@ export type OptionKind = "size" | "length" | "extra";
 export type Salon = {
   id: string; name: string; tagline: string | null; phone: string | null; address: string | null; city: string | null;
   timezone: string; currency: string; slot_minutes: number; min_notice_hours: number; booking_window_days: number; cancel_hours: number;
+  /** Home visits: the ZIP codes we travel to (their first three digits), and the time kept free after each visit to travel. */
+  service_zips: string[]; travel_minutes: number;
 };
-export type Profile = { id: string; role: Role; full_name: string; phone: string | null; created_at: string };
+/** address, city and zip: the customer's home, saved from their last booking (only they and the salon see it). */
+export type Profile = { id: string; role: Role; full_name: string; phone: string | null; address: string | null; city: string | null; zip: string | null; created_at: string };
 export type Style = {
   id: string; name: string; description: string | null; category: StyleCategory; image_url: string | null;
   duration_minutes: number; price: number; active: boolean; sort: number;
@@ -24,6 +27,10 @@ export type Appointment = {
   options: { id: string; kind: OptionKind; label: string }[];
   starts_at: string; ends_at: string; price: number; status: AppointmentStatus; note: string | null;
   cancelled_by: "customer" | "salon" | null; created_at: string;
+  /** Where the stylist goes (as it was when booked). */
+  visit_address: string | null; visit_city: string | null; visit_zip: string | null;
+  /** The end plus travel time: the stylist isn't free for another visit until then. */
+  busy_until?: string;
 };
 
 export type NotificationKind = "booked" | "confirmed" | "moved" | "declined" | "cancelled_by_salon" | "cancelled_by_customer";

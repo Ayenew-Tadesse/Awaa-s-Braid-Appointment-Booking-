@@ -4,14 +4,14 @@
 // nothing leaves the browser; it starts fresh each day, and "Reset the demo" starts over.
 import type { Appointment, AppointmentStatus, Dataset, NotificationKind, TimeOff } from "../domain/types";
 import { isOpen } from "../domain/types";
-import { busyFrom, freeSlots, MAX_UPCOMING, optionsProblem, quote, cancelRule, type Busy } from "../domain/booking";
+import { addressProblem, busyFrom, freeSlots, MAX_UPCOMING, optionsProblem, quote, cancelRule, type Busy } from "../domain/booking";
 import { hoursProblem, styleProblem } from "../domain/salon";
 import { localDay } from "../domain/time";
 import { buildWorld, noteFor, type World } from "../demo/seed";
 import { visibleTo } from "./visibility";
-import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
+import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft, VisitSettings } from "./store";
 
-const KEY = "awaa_demo_world_v1";
+const KEY = "awaa_demo_world_v2"; // v2: home visits
 const ACCOUNT = "awaa_demo_account";
 const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
 
@@ -57,7 +57,7 @@ export class DemoStore implements Store {
 
   async busyTimes(from: string, to: string): Promise<Busy[]> {
     const w = loadWorld(this.clock());
-    return busyFrom(w.appointments, w.timeOff).filter((b) => b.starts_at < to && b.ends_at > from);
+    return busyFrom(w.appointments, w.timeOff, w.salon.travel_minutes).filter((b) => b.starts_at < to && b.ends_at > from);
   }
 
   // The same checks, in the same order and words, as book_appointment() in the database.
@@ -68,6 +68,11 @@ export class DemoStore implements Store {
     if (!me) throw new Error("Please sign in to book.");
     const style = w.styles.find((s) => s.id === b.styleId && s.active);
     if (!style) throw new Error("That style is no longer available.");
+    const where = { address: b.address.address.trim().slice(0, 200), city: b.address.city.trim().slice(0, 80), zip: b.address.zip.trim() };
+    const wrong = addressProblem(where, w.salon);
+    if (wrong === "address") throw new Error("Please add the address where we should come.");
+    if (wrong === "zip") throw new Error("Please enter a 5-digit ZIP code.");
+    if (wrong === "area") throw new Error("Sorry, we don't travel to that ZIP code yet.");
     const problem = optionsProblem(style, w.options, b.optionIds);
     if (problem) throw new Error(problem);
     const chosen = w.options.filter((o) => b.optionIds.includes(o.id)).sort((x, y) => x.sort - y.sort);
@@ -78,7 +83,7 @@ export class DemoStore implements Store {
     const upcoming = w.appointments.filter((a) => a.customer_id === me.id && isOpen(a) && Date.parse(a.starts_at) > now.getTime());
     if (upcoming.length >= MAX_UPCOMING) throw new Error(`You already have ${MAX_UPCOMING} upcoming appointments. Cancel one to book another.`);
     const day = localDay(new Date(start), w.salon.timezone);
-    const slot = freeSlots({ salon: w.salon, stylists: w.stylists, hours: w.hours, busy: busyFrom(w.appointments, w.timeOff), day, minutes, now, only: b.stylistId })
+    const slot = freeSlots({ salon: w.salon, stylists: w.stylists, hours: w.hours, busy: busyFrom(w.appointments, w.timeOff, w.salon.travel_minutes), day, minutes, now, only: b.stylistId })
       .find((s) => Date.parse(s.startsAt) === start);
     if (!slot) {
       const onGrid = new Date(start).getUTCSeconds() === 0 && Math.round(start / 60000) % w.salon.slot_minutes === 0;
@@ -89,8 +94,11 @@ export class DemoStore implements Store {
       options: chosen.map((o) => ({ id: o.id, kind: o.kind, label: o.label })),
       starts_at: new Date(start).toISOString(), ends_at: new Date(start + minutes * 60000).toISOString(), price,
       status: "pending", note: b.note.trim().slice(0, 500) || null, cancelled_by: null, created_at: now.toISOString(),
+      visit_address: where.address, visit_city: where.city, visit_zip: where.zip,
+      busy_until: new Date(start + (minutes + w.salon.travel_minutes) * 60000).toISOString(),
     };
     w.appointments.push(a);
+    Object.assign(me, where); // saved for next time
     this.notify(w, "booked", a);
     saveWorld(w);
     return structuredClone(a);
@@ -138,12 +146,13 @@ export class DemoStore implements Store {
     if (!a) throw new Error("Appointment not found.");
     const minutes = (Date.parse(a.ends_at) - Date.parse(a.starts_at)) / 60000;
     const others = w.appointments.filter((x) => x.id !== id);
-    const slot = freeSlots({ salon: w.salon, stylists: w.stylists, hours: w.hours, busy: busyFrom(others, w.timeOff),
+    const slot = freeSlots({ salon: w.salon, stylists: w.stylists, hours: w.hours, busy: busyFrom(others, w.timeOff, w.salon.travel_minutes),
       day: localDay(new Date(startsAt), w.salon.timezone), minutes, now, only: stylistId, forSalon: true })
       .find((s) => s.startsAt === new Date(startsAt).toISOString());
     if (!slot) throw new Error("That time is no longer free. Please pick another.");
     const changed = a.starts_at !== slot.startsAt || a.stylist_id !== stylistId;
     a.starts_at = slot.startsAt; a.ends_at = slot.endsAt; a.stylist_id = stylistId;
+    a.busy_until = new Date(Date.parse(slot.endsAt) + w.salon.travel_minutes * 60000).toISOString();
     if (changed) this.notify(w, "moved", a);
     saveWorld(w);
   }
@@ -186,6 +195,17 @@ export class DemoStore implements Store {
   async removeTimeOff(id: string) {
     const w = this.asAdmin();
     w.timeOff = w.timeOff.filter((x) => x.id !== id);
+    saveWorld(w);
+  }
+
+  async saveVisitSettings(v: VisitSettings) {
+    const w = this.asAdmin();
+    const zips = [...new Set(v.service_zips.map((z) => z.trim()).filter(Boolean))];
+    if (!zips.length || zips.some((z) => !/^\d{3}$/.test(z))) throw new Error("Use the first three digits of each ZIP code, for example 200.");
+    if (!(v.travel_minutes >= 0 && v.travel_minutes <= 240)) throw new Error("Travel time is 0 to 240 minutes.");
+    w.salon.service_zips = zips;
+    w.salon.travel_minutes = Math.round(v.travel_minutes);
+    // Like the database: the new travel time applies to visits booked or moved from now on.
     saveWorld(w);
   }
 }

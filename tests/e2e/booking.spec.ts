@@ -14,7 +14,7 @@ const firstFreeTime = async (page: Page) => {
   return first;
 };
 
-test("book knotless braids in four steps; the request shows as waiting and the salon sees it", async ({ page }) => {
+test("book knotless braids in five steps; the stylist comes to the saved address; the salon sees it", async ({ page }) => {
   await asCustomer(page);
   await page.locator("[data-book-cta]").click();
   await expect(page.getByRole("heading", { name: "Choose a style" })).toBeVisible();
@@ -39,12 +39,24 @@ test("book knotless braids in four steps; the request shows as waiting and the s
   await slot.click();
   await noSideScroll(page);
   await page.click("[data-next]");
-  // 4. Review and send.
+  // 4. Where: Hana's saved address is filled in; only ZIP codes 200-209.
+  await expect(page.getByRole("heading", { name: "Where should we come?" })).toBeVisible();
+  await expect(page.locator("#address")).toHaveValue("12 Demo Street NW, Apt 4");
+  await expect(page.locator("[data-place]")).toContainText("ZIP codes starting 200–209");
+  await page.fill("#zip", "22201");
+  await page.click("[data-next]");
+  await expect(page.locator("[data-place-problem=area]")).toContainText("we don't travel there yet");
+  await page.fill("#zip", "20001");
+  await noSideScroll(page);
+  await page.click("[data-next]");
+  // 5. Review and send.
   const review = page.locator("[data-review]");
   await expect(review).toContainText("Knotless braids");
   await expect(review).toContainText("Small · Waist");
   await expect(review).toContainText(time);
-  await expect(review).toContainText("$390, paid at the salon");
+  await expect(review).toContainText("$390, paid to your stylist on the day");
+  await expect(review).toContainText("12 Demo Street NW, Apt 4");
+  await expect(review).toContainText("Washington, DC 20001");
   await page.fill("#note", "Black hair, please");
   await page.click("[data-confirm]");
   await expect(page.locator("[data-booking-sent]")).toContainText("Request sent");
@@ -57,7 +69,33 @@ test("book knotless braids in four steps; the request shows as waiting and the s
   await page.click("[data-sign-out]");
   await page.click("[data-demo=admin]");
   await expect(page.locator("[data-requests]")).toContainText("Hana Bekele");
-  await expect(page.locator("[data-requests] [data-appointment]", { hasText: "Small · Waist" })).toBeVisible();
+  await page.locator("[data-requests] [data-appointment]", { hasText: "Small · Waist" }).click();
+  // The salon sees where to go, with a map link.
+  await expect(page.locator("[data-sheet-place]")).toContainText("12 Demo Street NW, Apt 4");
+  await expect(page.locator("[data-sheet] [data-map]")).toHaveAttribute("href", /google\.com\/maps\/search\/\?api=1&query=12%20Demo%20Street/);
+});
+
+test("a new address and ZIP code are checked and saved for next time", async ({ page }) => {
+  await asCustomer(page);
+  await page.goto("/app/book");
+  await page.click('[data-pick-style="Takedown and wash"]');
+  await (await firstFreeTime(page)).click();
+  await page.click("[data-next]");
+  await page.fill("#address", "");
+  await page.click("[data-next]");
+  await expect(page.locator("[data-place-problem=address]")).toBeVisible();
+  await page.fill("#address", "77 Demo Way");
+  await page.fill("#city", "Bethesda, MD");
+  await page.fill("#zip", "208");
+  await page.click("[data-next]");
+  await expect(page.locator("[data-place-problem=zip]")).toBeVisible();
+  await page.fill("#zip", "20814");
+  await page.click("[data-next]");
+  await page.click("[data-confirm]");
+  await expect(page.locator("[data-booking-sent]")).toBeVisible();
+  await page.goto("/app/account");
+  await expect(page.locator("[data-home]")).toContainText("77 Demo Way");
+  await expect(page.locator("[data-home]")).toContainText("Bethesda, MD 20814");
 });
 
 test("a style from the styles list starts the booking with it; one-step styles skip to the time", async ({ page }) => {
@@ -113,6 +151,7 @@ test("at most 3 upcoming bookings", async ({ page }) => {
   await page.click('[data-pick-style="Takedown and wash"]');
   await (await firstFreeTime(page)).click();
   await page.click("[data-next]");
+  await page.click("[data-next]"); // the saved address
   await page.click("[data-confirm]");
   await expect(page.locator("[data-booking-sent]")).toBeVisible();
   await page.goto("/app/book");

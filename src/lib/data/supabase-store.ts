@@ -4,7 +4,7 @@
 import type { Appointment, AppointmentStatus, Dataset, Notification, Profile, Salon, Style, StyleOption, Stylist, TimeOff, WorkingHours } from "../domain/types";
 import { supabase } from "../supabase/client";
 import type { Busy } from "../domain/booking";
-import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft } from "./store";
+import type { HoursDraft, NewBooking, OptionDraft, Store, StyleDraft, StylistDraft, VisitSettings } from "./store";
 
 async function rows<T>(q: PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const { data, error } = await q;
@@ -63,6 +63,7 @@ export class SupabaseStore implements Store {
   async book(b: NewBooking): Promise<Appointment> {
     const { data, error } = await supabase().rpc("book_appointment", {
       p_style: b.styleId, p_options: b.optionIds, p_stylist: b.stylistId, p_starts_at: b.startsAt, p_note: b.note || null,
+      p_address: b.address.address, p_city: b.address.city, p_zip: b.address.zip,
     });
     if (error) throw new Error(error.message);
     const a = data as Appointment;
@@ -117,5 +118,13 @@ export class SupabaseStore implements Store {
   async removeTimeOff(id: string) {
     const { error } = await supabase().from("time_off").delete().eq("id", id);
     if (error) throw new Error(error.message);
+  }
+
+  async saveVisitSettings(v: VisitSettings) {
+    const sb = supabase();
+    const { data, error } = await sb.from("salon").select("id").limit(1).single();
+    if (error) throw new Error(error.message);
+    const { error: e } = await sb.from("salon").update({ service_zips: v.service_zips, travel_minutes: v.travel_minutes }).eq("id", data.id);
+    if (e) throw new Error(/check/.test(e.message) ? "Use the first three digits of each ZIP code, for example 200." : e.message);
   }
 }

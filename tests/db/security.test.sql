@@ -25,8 +25,9 @@ $$;
 grant execute on all functions in schema pg_temp to anon, authenticated;
 
 /* ---------------------------------------------------------------- set-up */
-insert into salon (name, slot_minutes, min_notice_hours, booking_window_days, cancel_hours)
-values ('Test Salon', 30, 2, 60, 24);
+-- No travel time to start with (the home-visit section at the end turns it on).
+insert into salon (name, slot_minutes, min_notice_hours, booking_window_days, cancel_hours, travel_minutes)
+values ('Test Salon', 30, 2, 60, 24, 0);
 select pg_temp.check((select timezone || ' ' || currency from salon) = 'America/New_York USD', 'a new salon is on US Eastern Time, in US dollars');
 
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -37,6 +38,9 @@ select pg_temp.check((select count(*) from profiles where role = 'customer') = 3
 select pg_temp.check((select phone from profiles where id = 'c0000000-0000-0000-0000-000000000001') = '(202) 555-0101', 'name and phone come from sign-up');
 select pg_temp.check((select role from profiles where id = 'c0000000-0000-0000-0000-000000000002') = 'customer', 'a role in sign-up data does not make anyone an admin');
 update profiles set role = 'admin' where id = 'a0000000-0000-0000-0000-000000000001'; -- the owner, set up by hand
+-- Saved home addresses (fictional), used when a booking doesn't give one.
+update profiles set address = '1 Test Street', city = 'Washington, DC', zip = '20001' where id = 'c0000000-0000-0000-0000-000000000001';
+update profiles set address = '2 Test Avenue', city = 'Silver Spring, MD', zip = '20910' where id = 'c0000000-0000-0000-0000-000000000002';
 
 insert into styles (id, name, duration_minutes, price, sort, active) values
   ('5e000000-0000-0000-0000-000000000001', 'Knotless braids', 240, 2500, 1, true),
@@ -198,3 +202,48 @@ update appointments set starts_at = starts_at + interval '14 days', ends_at = en
 select pg_temp.back();
 select pg_temp.check((select data ->> 'starts_at' from notifications where user_id = 'c0000000-0000-0000-0000-000000000002' and kind = 'moved')::timestamptz
   = (select starts_at + interval '14 days' from n_req order by starts_at limit 1), 'moving tells the customer the new time');
+
+/* ---------------------------------------------------------------- home visits */
+select pg_temp.check((select array_to_string(service_zips, ',') from salon) = '200,201,202,203,204,205,206,207,208,209', 'we travel to ZIP codes 200 to 209 by default');
+update salon set travel_minutes = 60;
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('c0000000-0000-0000-0000-000000000003', 'eden@test', '{"full_name":"Eden Customer"}'),
+  ('c0000000-0000-0000-0000-000000000004', 'saba@test', '{"full_name":"Saba Customer"}');
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000003');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', null, pg_temp.at(10, '09:00'))$q$) like '%address%',
+  'a booking needs an address');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', null, pg_temp.at(10, '09:00'), null, '5 Test Road', 'Arlington, VA', '22201')$q$) like '%don''t travel%',
+  'a ZIP code outside the service area is refused');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', null, pg_temp.at(10, '09:00'), null, '5 Test Road', 'Washington, DC', '2000')$q$) like '%5-digit%',
+  'a ZIP code must have 5 digits');
+create temp table visit as select * from book_appointment('5e000000-0000-0000-0000-000000000002', '{}', '51000000-0000-0000-0000-000000000001', pg_temp.at(10, '09:00'),
+  null, ' 5 Test Road, Apt 3 ', 'Washington, DC', '20002');
+grant select on visit to authenticated;
+select pg_temp.check((select visit_address || ' / ' || visit_city || ' / ' || visit_zip from visit) = '5 Test Road, Apt 3 / Washington, DC / 20002', 'the visit keeps its address');
+select pg_temp.check((select address || ' ' || zip from profiles) = '5 Test Road, Apt 3 20002', 'the address is saved on the profile for next time');
+select pg_temp.check((select busy_until - ends_at from visit) = interval '60 minutes', 'each visit holds the travel time after it');
+select pg_temp.back();
+
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', '51000000-0000-0000-0000-000000000001', pg_temp.at(10, '11:00'), null, '6 Test Lane', 'Takoma Park, MD', '20912')$q$) like '%no longer free%',
+  'the same stylist cannot start the next visit before the travel time is over');
+select pg_temp.check(pg_temp.error_of($q$select book_appointment('5e000000-0000-0000-0000-000000000002', '{}', '51000000-0000-0000-0000-000000000001', pg_temp.at(10, '14:00'), null, '6 Test Lane', 'Takoma Park, MD', '20912')$q$) = '',
+  'after the travel time the stylist can be booked again');
+select pg_temp.check(not exists (select 1 from appointments where visit_address like '5 Test Road%'), 'customers never see another customer''s address');
+select pg_temp.check((select count(*) from profiles where address like '5 Test Road%') = 0, 'or their saved address');
+select pg_temp.check((select min(starts_at) from busy_times(pg_temp.at(10, '00:00'), pg_temp.at(11, '00:00')) where stylist_id = '51000000-0000-0000-0000-000000000001') = pg_temp.at(10, '08:00'),
+  'busy times include the travel time before and after each visit');
+select pg_temp.back();
+
+select pg_temp.act_as('a0000000-0000-0000-0000-000000000001');
+select pg_temp.check((select visit_address from appointments where id = (select id from visit)) like '5 Test Road%', 'the salon sees where to go');
+select pg_temp.check(pg_temp.error_of($q$update appointments set starts_at = pg_temp.at(10, '12:00'), ends_at = pg_temp.at(10, '13:30') where id = (select id from visit)$q$) like '%appointments_no_overlap%',
+  'moving a visit into the travel time of another is refused by the database');
+update salon set service_zips = array['200'];
+select pg_temp.check((select array_to_string(service_zips, ',') from salon) = '200', 'the salon changes the service area');
+select pg_temp.check(pg_temp.error_of($q$update salon set service_zips = array['20a']$q$) <> '', 'a service area must be 3-digit ZIP starts');
+select pg_temp.back();
+select pg_temp.act_as('c0000000-0000-0000-0000-000000000004');
+select pg_temp.check(pg_temp.refused($q$update salon set travel_minutes = 0$q$), 'customers cannot change the service area or travel time');
+select pg_temp.back();
+select pg_temp.check(not exists (select 1 from notifications where data::text like '%Test Road%' or data::text like '%Test Lane%'), 'notifications never carry an address');

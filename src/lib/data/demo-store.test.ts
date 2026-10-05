@@ -17,6 +17,7 @@ const admin = () => w0().accounts[1].profile_id;
 const style = (name: string) => w0().styles.find((s) => s.name === name)!;
 const option = (styleName: string, label: string) => w0().options.find((o) => o.style_id === style(styleName).id && o.label === label)!.id;
 const tz = "America/New_York";
+const HOME = { address: "12 Demo Street NW", city: "Washington, DC", zip: "20001" };
 
 describe("booking in the demo (the database's rules)", () => {
   beforeEach(() => { mem.clear(); resetDemo(); });
@@ -24,7 +25,7 @@ describe("booking in the demo (the database's rules)", () => {
   it("books a request with the price and time worked out, which the salon then sees", async () => {
     const store = new DemoStore(customer(), clock);
     const a = await store.book({ styleId: style("Knotless braids").id, optionIds: [option("Knotless braids", "Large"), option("Knotless braids", "Shoulder")],
-      stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "  Black hair please  " });
+      stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "  Black hair please  ", address: HOME });
     expect(a.status).toBe("pending");
     expect(a.price).toBe(220);
     expect((Date.parse(a.ends_at) - Date.parse(a.starts_at)) / 60000).toBe(195);
@@ -36,36 +37,36 @@ describe("booking in the demo (the database's rules)", () => {
   it("refuses a taken time, a time off the grid, too little notice and a missing size", async () => {
     const store = new DemoStore(customer(), clock);
     const cornrows = style("Cornrows").id;
-    const first = await store.book({ styleId: cornrows, optionIds: [], stylistId: w0().stylists[0].id, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "" });
+    const first = await store.book({ styleId: cornrows, optionIds: [], stylistId: w0().stylists[0].id, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "", address: HOME });
     const other = new DemoStore(w0().profiles[3].id, clock); // Hana now has 3 upcoming, so another customer tries
-    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: first.stylist_id, startsAt: at("2026-10-16", "09:30", tz).toISOString(), note: "" }))
+    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: first.stylist_id, startsAt: at("2026-10-16", "09:30", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("no longer free");
-    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "10:10", tz).toISOString(), note: "" }))
+    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "10:10", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("offered times");
-    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: null, startsAt: at("2026-10-06", "08:00", tz).toISOString(), note: "" }))
+    await expect(other.book({ styleId: cornrows, optionIds: [], stylistId: null, startsAt: at("2026-10-06", "08:00", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("hours ahead");
-    await expect(other.book({ styleId: style("Box braids").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "13:00", tz).toISOString(), note: "" }))
+    await expect(other.book({ styleId: style("Box braids").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "13:00", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("Choose a size.");
   });
 
   it("\"any stylist\" picks one who is free", async () => {
     const store = new DemoStore(customer(), clock);
     const when = at("2026-10-16", "09:00", tz).toISOString();
-    const a = await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: when, note: "" });
-    const b = await new DemoStore(w0().profiles[3].id, clock).book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: when, note: "" });
+    const a = await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: when, note: "", address: HOME });
+    const b = await new DemoStore(w0().profiles[3].id, clock).book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: when, note: "", address: HOME });
     expect(a.stylist_id).not.toBe(b.stylist_id);
   });
 
   it("allows at most 3 upcoming bookings", async () => {
     const store = new DemoStore(customer(), clock); // Hana already has 2 upcoming
-    await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "" });
-    await expect(store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-17", "09:00", tz).toISOString(), note: "" }))
+    await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "", address: HOME });
+    await expect(store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-17", "09:00", tz).toISOString(), note: "", address: HOME }))
       .rejects.toThrow("3 upcoming");
   });
 
   it("cancels your own request, which frees the time; not someone else's", async () => {
     const store = new DemoStore(customer(), clock);
-    const a = await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: w0().stylists[0].id, startsAt: at("2026-10-16", "11:00", tz).toISOString(), note: "" });
+    const a = await store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: w0().stylists[0].id, startsAt: at("2026-10-16", "11:00", tz).toISOString(), note: "", address: HOME });
     await expect(new DemoStore(w0().profiles[3].id, clock).cancel(a.id)).rejects.toThrow("not found");
     await store.cancel(a.id);
     expect(w0().appointments.find((x) => x.id === a.id)!.cancelled_by).toBe("customer");
@@ -78,8 +79,31 @@ describe("booking in the demo (the database's rules)", () => {
     const tomorrow = w.appointments.find((a) => a.customer_id === customer() && a.status === "confirmed")!;
     tomorrow.starts_at = new Date(NOW.getTime() + 10 * 3600000).toISOString();
     tomorrow.ends_at = new Date(NOW.getTime() + 14 * 3600000).toISOString();
-    localStorage.setItem("awaa_demo_world_v1", JSON.stringify(w));
+    localStorage.setItem("awaa_demo_world_v2", JSON.stringify(w));
     await expect(new DemoStore(customer(), clock).cancel(tomorrow.id)).rejects.toThrow("call the salon");
+  });
+
+  it("comes to your home: only inside the service area, and the address is saved for next time", async () => {
+    const store = new DemoStore(w0().profiles[3].id, clock);
+    const book = (address: typeof HOME, time = "09:00") => store.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: w0().stylists[0].id, startsAt: at("2026-10-16", time, tz).toISOString(), note: "", address });
+    await expect(book({ ...HOME, zip: "22201" })).rejects.toThrow("don't travel");
+    await expect(book({ ...HOME, zip: "2000" })).rejects.toThrow("5-digit");
+    await expect(book({ ...HOME, address: "" })).rejects.toThrow("address");
+    const a = await book({ address: " 5 Demo Road ", city: "Bethesda, MD", zip: "20814" });
+    expect([a.visit_address, a.visit_city, a.visit_zip]).toEqual(["5 Demo Road", "Bethesda, MD", "20814"]);
+    expect((await store.load()).me.zip).toBe("20814");
+    // Hana never sees it.
+    const hana = await new DemoStore(customer(), clock).load();
+    expect(JSON.stringify(hana)).not.toContain("5 Demo Road");
+  });
+
+  it("keeps the travel time free between one visit and the next", async () => {
+    const selam = w0().stylists[0].id;
+    const one = new DemoStore(w0().profiles[3].id, clock), two = new DemoStore(w0().profiles[4].id, clock);
+    const book = (s: DemoStore, time: string) => s.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", time, tz).toISOString(), note: "", address: HOME });
+    await book(one, "09:00"); // until 10:30, then an hour to travel
+    await expect(book(two, "11:00")).rejects.toThrow("no longer free");
+    await expect(book(two, "11:30")).resolves.toBeTruthy();
   });
 
   it("busy times carry no one's name or details", async () => {
@@ -153,9 +177,9 @@ describe("the salon's tools in the demo (admins only)", () => {
     const selam = w0().stylists[0].id;
     await s.addTimeOff({ stylist_id: selam, starts_at: at("2026-10-16", "09:00", tz).toISOString(), ends_at: at("2026-10-16", "19:00", tz).toISOString(), reason: "Dentist" });
     const c = new DemoStore(w0().profiles[3].id, clock);
-    await expect(c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "" })).rejects.toThrow("no longer free");
+    await expect(c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "", address: HOME })).rejects.toThrow("no longer free");
     await s.removeTimeOff(w0().timeOff.find((t) => t.reason === "Dentist")!.id);
-    await c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "" });
+    await c.book({ styleId: style("Cornrows").id, optionIds: [], stylistId: selam, startsAt: at("2026-10-16", "10:00", tz).toISOString(), note: "", address: HOME });
   });
 });
 
@@ -164,7 +188,7 @@ describe("notifications in the demo (the database's trigger)", () => {
   const latest = async (who: string) => (await new DemoStore(who, clock).load()).notifications[0];
 
   it("a new request tells the salon, with who booked", async () => {
-    await new DemoStore(customer(), clock).book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "" });
+    await new DemoStore(customer(), clock).book({ styleId: style("Cornrows").id, optionIds: [], stylistId: null, startsAt: at("2026-10-16", "09:00", tz).toISOString(), note: "", address: HOME });
     expect(await latest(admin())).toMatchObject({ kind: "booked", read_at: null, data: { customer: "Hana Bekele", style: "Cornrows" } });
   });
 

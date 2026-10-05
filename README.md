@@ -1,8 +1,9 @@
 # Awaa Braids
 
-Book braiding appointments from your phone. Customers pick a style, choose a time
-that is really free and the salon confirms it; the salon sees its day, the requests
-waiting and the week at a glance. Built phone first.
+Book braiding appointments from your phone, and the stylist comes to your home.
+Customers pick a style, choose a time that is really free and give their address; the
+salon confirms it and sees its day, the requests waiting and the week at a glance.
+Built phone first, for the Washington, DC area.
 
 **Try it without any setup:** run it and choose "Continue as Customer" or
 "Continue as Salon admin". The demo is a fictional salon with fictional people,
@@ -33,11 +34,18 @@ kept in your browser.
   - `supabase/starter-salon.sql`: the salon, 7 styles with sample prices and one stylist, ready to edit in the app. It refuses to run twice.
   - [docs/setup.md](docs/setup.md): connecting a real salon step by step.
 
+- **Home visits:** there is no salon to visit; the stylist goes to the customer.
+  - Booking has a fifth step, "Where should we come?": street, city and ZIP code, saved for next time.
+  - Only ZIP codes starting 200 to 209 (Washington, DC and nearby Maryland); the salon can change the list.
+  - An hour (changeable) is kept free after each visit so the stylist can get to the next home. The database enforces it too.
+  - The salon sees the address with an "Open in Maps" link.
+
 ## Security
 
 - Every table has Row Level Security. A customer only ever sees their own profile and appointments; nobody sees another customer's name, phone or bookings.
 - Anyone who signs up is a customer. Only the salon (an admin) can make someone an admin.
 - Customers can't write appointments directly: booking goes through `book_appointment`, which works out the time and price from the style on the server and checks the hours, notice, booking window, time off and the 30-minute grid. The database itself refuses two open appointments that overlap for the same stylist.
+- A customer's home address is seen only by them and the salon: never in `busy_times`, never in notifications, never by another customer.
 - The website only has the public (anon) key. There is no service-role key anywhere in this app.
 
 ## Run it

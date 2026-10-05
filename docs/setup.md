@@ -14,11 +14,13 @@ secret key in the code, and nobody else needs your passwords.
    3. `20261006000001_usd_eastern.sql`
    4. `20261007000001_salon_tools.sql`
    5. `20261008000001_notifications.sql`
+   6. `20261009000001_home_visits.sql`
 
    Each should finish with "Success. No rows returned".
-3. Open `supabase/starter-salon.sql`. Change the two lines marked **EDIT ME** to the
-   salon's phone number and address, then run it. It adds:
-   - the salon (US dollars, US Eastern Time, Washington, DC area);
+3. Open `supabase/starter-salon.sql`. Change the line marked **EDIT ME** to your
+   business phone number, then run it. It adds:
+   - the salon (US dollars, US Eastern Time, Washington, DC area), with home visits to
+     ZIP codes starting 200 to 209 and an hour kept free between visits for travel;
    - 7 styles with sample prices and their sizes, lengths and extras;
    - one stylist called "Stylist 1", working Monday to Saturday, 9:00 AM to 7:00 PM.
 
@@ -65,12 +67,17 @@ Everyone else who signs up is a customer. Only an admin can make someone else an
 - **Salon → Stylists and hours:** rename "Stylist 1", set the real working week and
   breaks, and add the other stylists.
 - **Salon → Styles and prices:** set your real prices and times, change or hide styles.
+- **Salon → Home visits:** the ZIP codes you travel to (first three digits) and the
+  travel time between visits.
 - Book a test appointment from a second account (or a friend's phone), confirm it as the
   admin, then cancel it.
 
 ## Good to know
 
-- Customers pay at the salon; the app takes no payments.
+- Stylists go to the customer's home. Customers give their address when they book; only
+  they and the admin see it. Stylists don't have their own logins, so the admin passes
+  each stylist the address (the appointment has an "Open in Maps" button).
+- Customers pay their stylist on the day; the app takes no payments.
 - Notifications are in the app only (the bell). No texts or emails are sent.
 - Backups depend on your Supabase plan: check **Database → Backups** to see what yours keeps.
 - When a future update adds a new file to `supabase/migrations`, run only that new file.

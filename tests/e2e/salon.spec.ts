@@ -45,7 +45,7 @@ test("move a request to another free time and stylist", async ({ page }) => {
   const card = page.locator("[data-requests] [data-appointment]", { hasText: "Hana Bekele" });
   await card.click();
   await page.locator("[data-sheet] [data-action=reschedule]").click();
-  await expect(page.locator("[data-sheet]")).toContainText("Only times when the stylist is free are shown.");
+  await expect(page.locator("[data-sheet]")).toContainText("Only times when the stylist is free, with 1 h to travel between homes, are shown.");
   await page.click('[data-move-stylist="Selam"]');
   await page.locator("[data-move-days] button").nth(10).click();
   const slot = page.locator("[data-move-slots] button").first();
@@ -132,6 +132,32 @@ test("change a stylist's week and add time off; booking follows", async ({ page 
     els.filter((e) => new Date(`${e.getAttribute("data-day")}T12:00:00Z`).getUTCDay() === 1).map((e) => (e as HTMLButtonElement).disabled));
   expect(mondays.length).toBeGreaterThan(0);
   expect(mondays.every(Boolean)).toBe(true);
+});
+
+test("home visits: the salon changes the area and travel time; customers follow it", async ({ page }) => {
+  await signIn(page, "admin");
+  await page.goto("/app/salon");
+  await page.click('[data-salon-link="/app/salon/visits"]');
+  await expect(page.locator("#zips")).toHaveValue("200, 201, 202, 203, 204, 205, 206, 207, 208, 209");
+  await expect(page.locator("#travel")).toHaveValue("60");
+  await page.fill("#zips", "200, 2x");
+  await page.click("[data-save-visits]");
+  await expect(page.getByText("Use the first three digits")).toBeVisible();
+  await page.fill("#zips", "200");
+  await expect(page.locator("[data-area-preview]")).toContainText("ZIP codes starting 200");
+  await page.fill("#travel", "30");
+  await page.click("[data-save-visits]");
+  await expect(page.getByText("Saved")).toBeVisible();
+  // Hana in Washington (20001) can still book; Silver Spring (20910) is now outside.
+  await switchTo(page, "customer");
+  await page.goto("/app/book");
+  await page.click('[data-pick-style="Takedown and wash"]');
+  await page.locator("[data-days] button:not([disabled])").nth(1).click();
+  await page.locator("[data-slots] button").first().click();
+  await page.click("[data-next]");
+  await page.fill("#zip", "20910");
+  await page.click("[data-next]");
+  await expect(page.locator("[data-place-problem=area]")).toContainText("only ZIP codes starting 200.");
 });
 
 test("reports: the week's bars, popular styles and rates", async ({ page }) => {

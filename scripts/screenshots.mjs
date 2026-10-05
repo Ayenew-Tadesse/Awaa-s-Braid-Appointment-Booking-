@@ -42,7 +42,7 @@ await page.click("[data-tab=past]");
 await page.locator("[data-tab=past]").evaluate((el) => el.scrollIntoView({ block: "start" }));
 await shot("customer-past", "Past appointments");
 
-// Booking: style, size and length, a free time, then review.
+// Booking: style, size and length, a free time, where to come, then review.
 await page.goto(`${BASE}/app/book`);
 await page.waitForSelector("[data-pick-style]");
 await shot("book-1-style", "Choose a style");
@@ -55,6 +55,9 @@ await page.waitForSelector("[data-days] button");
 await page.locator("[data-days] button:not([disabled])").nth(1).click();
 await page.locator("[data-slots] button").nth(2).click();
 await shot("book-3-time", "Date and time");
+await page.click("[data-next]");
+await page.waitForSelector("[data-place]");
+await shot("book-address", "Where should we come?");
 await page.click("[data-next]");
 await page.fill("#note", "Black hair, please");
 await shot("book-4-review", "Review and send");
@@ -89,7 +92,7 @@ await shot("admin-requests", "Requests to confirm");
 // The salon's tools: one appointment's actions, the calendar, styles, the team's week and reports.
 await page.locator("[data-requests] [data-appointment]").first().click();
 await page.waitForSelector("[data-sheet] [data-actions]");
-await shot("salon-sheet", "Confirm, decline or move");
+await shot("salon-sheet", "Confirm, decline or move, with the address and a map link");
 await page.keyboard.press("Escape");
 await page.goto(`${BASE}/app/calendar`);
 await page.waitForSelector("[data-cal-stylist]");
@@ -104,6 +107,9 @@ await page.locator("[data-manage-stylist]").first().click();
 await page.waitForSelector("[data-stylist-editor]");
 await shot("salon-hours", "A stylist's working week");
 await page.keyboard.press("Escape");
+await page.goto(`${BASE}/app/salon/visits`);
+await page.waitForSelector("[data-visits]");
+await shot("salon-visits", "Home visits: the area and travel time");
 await page.goto(`${BASE}/app/salon/reports`);
 await page.waitForSelector("[data-week-bars]");
 await shot("salon-reports", "Reports");

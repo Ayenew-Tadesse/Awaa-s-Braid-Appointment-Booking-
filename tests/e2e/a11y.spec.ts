@@ -32,6 +32,11 @@ for (const scheme of ["light", "dark"] as const) {
       await page.click("[data-next]");
       await page.waitForSelector("[data-slots] button, [data-days] button");
       await scan(page, "booking: time");
+      await page.locator("[data-days] button:not([disabled])").nth(1).click();
+      await page.locator("[data-slots] button").first().click();
+      await page.click("[data-next]");
+      await page.waitForSelector("[data-place]");
+      await scan(page, "booking: where");
       for (const path of ["/app/styles", "/app/notifications", "/app/account"]) {
         await page.goto(path);
         await page.waitForSelector("main h1");
@@ -48,7 +53,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.waitForSelector("[data-sheet]");
       await scan(page, "appointment sheet");
       await page.keyboard.press("Escape");
-      for (const path of ["/app/calendar", "/app/salon", "/app/salon/styles", "/app/salon/team", "/app/salon/reports", "/app/notifications"]) {
+      for (const path of ["/app/calendar", "/app/salon", "/app/salon/styles", "/app/salon/team", "/app/salon/visits", "/app/salon/reports", "/app/notifications"]) {
         await page.goto(path);
         await page.waitForSelector("main h1");
         await scan(page, path);

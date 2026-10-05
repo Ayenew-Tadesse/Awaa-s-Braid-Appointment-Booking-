@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui";
 import { useCatalogue } from "@/lib/data/catalogue";
 import { useT } from "@/lib/i18n";
 import { supabaseConfigured } from "@/lib/supabase/config";
+import { areaLabel } from "@/lib/domain/booking";
 
 export default function Home() {
   const t = useT();
@@ -58,7 +59,7 @@ export default function Home() {
         <section className="card mt-8 p-4" aria-labelledby="visit">
           <h2 id="visit" className="text-lg font-semibold">{t("landing.visit")}</h2>
           <ul className="mt-2 space-y-2 text-sm">
-            {c?.salon.address && <li className="flex gap-2"><Icon name="pin" className="mt-0.5 shrink-0 text-brand" /><span>{c.salon.address}{c.salon.city && <span className="muted block">{c.salon.city}</span>}</span></li>}
+            {c && <li className="flex gap-2" data-area><Icon name="pin" className="mt-0.5 shrink-0 text-brand" /><span>{t("landing.area", { area: areaLabel(c.salon.service_zips) })}{c.salon.city && <span className="muted block">{c.salon.city}</span>}</span></li>}
             <li className="flex gap-2"><Icon name="clock" className="mt-0.5 shrink-0 text-brand" />{t("landing.hours")}</li>
             {c?.salon.phone && <li className="flex gap-2"><Icon name="phone" className="mt-0.5 shrink-0 text-brand" /><a className="underline" href={`tel:${c.salon.phone.replace(/\s/g, "")}`}>{c.salon.phone}</a></li>}
             <li className="flex gap-2"><Icon name="money" className="mt-0.5 shrink-0 text-brand" />{t("landing.pay")}</li>
