@@ -28,7 +28,10 @@ kept in your browser.
   - English and Amharic (አማርኛ), including dates and times; switch on the front page, sign-in or Account.
   - An offline banner, "Skip to content", focus kept inside open sheets, and automatic accessibility checks (axe, WCAG 2.1 AA) on every main screen in light and dark mode.
 
-Coming next: a guided demo tour, the case study and connecting a real salon (5).
+- **Tour and going live (milestone 5):**
+  - A one-minute guided tour of the demo (button on the sign-in page): three stops as a customer, then five as the salon, in English or Amharic.
+  - `supabase/starter-salon.sql`: the salon, 7 styles with sample prices and one stylist, ready to edit in the app. It refuses to run twice.
+  - [docs/setup.md](docs/setup.md): connecting a real salon step by step.
 
 ## Security
 
